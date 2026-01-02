@@ -1,0 +1,334 @@
+:root{
+  --zcor-mint:#bdf7d6;
+  --zcor-mint-soft:#dfffe9;
+  --zcor-dark:#1f3f18;
+  --zcor-dark-2:#163112;
+  --zcor-text:#0f1b10;
+  --zcor-muted: rgba(15,27,16,.60);
+  --zcor-border: rgba(15,27,16,.12);
+  --zcor-shadow: 0 22px 55px rgba(15,27,16,.10);
+  --zcor-radius: 14px;
+}
+
+.zcor-login{
+  min-height: calc(100vh - 64px);
+  display: grid;
+  place-items: center;
+  padding: 28px 16px;
+  background: radial-gradient(
+      circle at 50% 30%,
+      rgba(255,255,255,.55),
+      rgba(255,255,255,0) 55%
+    ),
+    linear-gradient(180deg, var(--zcor-mint-soft), var(--zcor-mint));
+}
+
+.zcor-login__inner{
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+/* Logo pill */
+.zcor-login__logoPill{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(31,63,24,.92);
+  color: #fff;
+  padding: 6px 12px 6px 8px;
+  border-radius: 999px;
+  box-shadow: 0 14px 35px rgba(15,27,16,.18);
+}
+
+.zcor-login__logoMark{
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(223,255,233,.95);
+  color: var(--zcor-dark-2);
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.zcor-login__logoText{
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .04em;
+}
+
+/* Card */
+.zcor-login__card{
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--zcor-border);
+  border-radius: var(--zcor-radius);
+  box-shadow: var(--zcor-shadow);
+  padding: 22px;
+}
+
+.zcor-login__header{
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.zcor-login__title{
+  margin: 0;
+  color: var(--zcor-text);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.zcor-login__subtitle{
+  margin: 6px 0 0;
+  color: var(--zcor-muted);
+  font-size: 12px;
+}
+
+/* Form */
+.zcor-login__form{
+  display: grid;
+  gap: 12px;
+}
+
+.zcor-login__field{
+  display: grid;
+  gap: 6px;
+}
+
+.zcor-login__label{
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--zcor-text);
+}
+
+.zcor-login__row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.zcor-login__link{
+  font-size: 11px;
+  color: rgba(15,27,16,.70);
+  text-decoration: none;
+}
+.zcor-login__link:hover{
+  text-decoration: underline;
+}
+
+.zcor-login__input{
+  width: 100%;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(15,27,16,.12);
+  background: rgba(15,27,16,.04);
+  padding: 0 10px;
+  font-size: 12px;
+  outline: none;
+  color: var(--zcor-text);
+}
+
+.zcor-login__input::placeholder{
+  color: rgba(15,27,16,.40);
+}
+
+.zcor-login__input:focus{
+  border-color: rgba(31,63,24,.35);
+  box-shadow: 0 0 0 3px rgba(31,63,24,.12);
+  background: #fff;
+}
+
+.zcor-login__passwordWrap{
+  position: relative;
+}
+
+.zcor-login__input--password{
+  padding-right: 40px;
+}
+
+.zcor-login__eyeBtn{
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 28px;
+  border: 1px solid rgba(15,27,16,.10);
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.zcor-login__eyeBtn:hover{
+  filter: brightness(0.98);
+}
+
+/* Checkbox */
+.zcor-login__checkboxRow{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.zcor-login__checkbox{
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(15,27,16,.18);
+  accent-color: var(--zcor-dark);
+}
+
+.zcor-login__checkboxText{
+  font-size: 11px;
+  color: rgba(15,27,16,.75);
+  font-weight: 600;
+}
+
+/* Primary button */
+.zcor-login__primaryBtn{
+  width: 100%;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: var(--zcor-dark);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 2px;
+}
+.zcor-login__primaryBtn:hover{
+  background: #1a3615;
+}
+.zcor-login__primaryBtn:active{
+  transform: translateY(1px);
+}
+
+/* Divider */
+.zcor-login__divider{
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 2px;
+}
+.zcor-login__dividerLine{
+  height: 1px;
+  background: rgba(15,27,16,.10);
+}
+.zcor-login__dividerText{
+  font-size: 10px;
+  color: rgba(15,27,16,.40);
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+/* Social */
+.zcor-login__socialGrid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.zcor-login__socialBtn{
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(15,27,16,.12);
+  background: #fff;
+  color: rgba(15,27,16,.85);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.zcor-login__socialBtn:hover{
+  background: rgba(15,27,16,.03);
+}
+
+.zcor-login__socialIcon{
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: rgba(15,27,16,.06);
+  border: 1px solid rgba(15,27,16,.10);
+  font-size: 12px;
+}
+
+/* Signup text */
+.zcor-login__signup{
+  margin: 8px 0 0;
+  font-size: 11px;
+  text-align: center;
+  color: rgba(15,27,16,.55);
+}
+
+.zcor-login__linkStrong{
+  color: rgba(15,27,16,.85);
+  font-weight: 800;
+  text-decoration: none;
+}
+.zcor-login__linkStrong:hover{
+  text-decoration: underline;
+}
+
+/* Footer */
+.zcor-login__footer{
+  margin-top: 8px;
+  text-align: center;
+  color: rgba(15,27,16,.45);
+  font-size: 10px;
+}
+
+.zcor-login__footerLinks{
+  margin-top: 6px;
+  display: inline-flex;
+  gap: 14px;
+}
+.zcor-login__footerLinks a{
+  color: rgba(15,27,16,.55);
+  text-decoration: none;
+}
+.zcor-login__footerLinks a:hover{
+  text-decoration: underline;
+}
+.zcor-login__footerBtn{
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.zcor-login__footerBtn:hover{
+  text-decoration: underline;
+}
+
+/* Small screens */
+@media (max-width: 420px){
+  .zcor-login__card{ padding: 18px; }
+  .zcor-login__socialGrid{ grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .zcor-login {
+    min-height: calc(100vh - 56px);
+  }
+}

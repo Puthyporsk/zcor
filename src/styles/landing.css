@@ -13,9 +13,14 @@
   --shadow:0 12px 30px rgba(15,27,16,.10);
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px; /* prevents anchor sections hiding under the fixed header */
+}
+
+
 *{box-sizing:border-box;}
 html,body{height:100%;}
-html{scroll-behavior:smooth; scroll-padding-top:72px;} /* ✅ smooth + account for sticky header */
 
 body{
   margin:0;
@@ -193,25 +198,34 @@ a:hover{text-decoration:underline;}
 .zcor-quote__name{font-weight:700;font-size:13px;}
 .zcor-quote__role{font-size:12px;color:rgba(15,27,16,.65);}
 
-/* PHOTO STRIP */
-/* IMAGE STRIP (flush into container like the other sections) */
-.zcor-photo{
-  padding: 22px 0 0;
-}
-
+/* PRODUCT PREVIEW (contained, clean, image fills frame) */
 .zcor-photoCard{
-  background: var(--mint2);
-  border: 1px solid rgba(15,27,16,.08);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  border-radius: 22px;
   overflow: hidden;
+  border: 1px solid rgba(15,27,16,.10);
+  background: color-mix(in oklab, var(--mint2) 65%, #fff 35%);
+  box-shadow: 0 18px 40px rgba(15,27,16,.10);
+
+  /* Frame size: give it enough height */
+  width: 100%;
+  min-height: 320px;
+  max-height: 520px;
+
+  display: grid;
+  place-items: center;
+  padding: 18px;  /* gives breathing room so the image never touches edges */
 }
 
 .zcor-photoImg{
   width: 100%;
-  height: auto;
+  height: 100%;
+  max-height: 480px;
+
   display: block;
+  object-fit: contain;     /*show full image */
+  object-position: center;
 }
+
 
 /* CTA ROW */
 .zcor-ctaRow{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
@@ -261,6 +275,32 @@ a:hover{text-decoration:underline;}
 .zcor-footer__links a:hover{color:#fff;text-decoration:none;}
 .zcor-footer__cta{display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
 .zcor-footer__fine{font-size:12px;color:rgba(255,255,255,.62);}
+.zcor-footerLinkBtn{
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: rgba(255,255,255,.78);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+.zcor-footerLinkBtn:hover{
+  color: #fff;
+}
+.zcor-footer__links button{
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.zcor-footer__links button:hover{
+  text-decoration: underline;
+}
+
+
 
 /* TABLET */
 @media (max-width:1023px){
@@ -314,4 +354,9 @@ a:hover{text-decoration:underline;}
 
   .zcor-hero__inner{padding:28px 0;}
   .zcor-photo__inner{height:220px;}
+
+  .zcor-photoCard{
+    aspect-ratio: 16 / 8;
+    max-height: 320px;
+  }
 }
