@@ -12,26 +12,34 @@ import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Tooltip from "@mui/material/Tooltip";
 
 import MenuIcon from "@mui/icons-material/Menu";
 import LoginIcon from "@mui/icons-material/Login";
+import DashboardCustomizeOutlinedIcon from "@mui/icons-material/DashboardCustomizeOutlined";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
+import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
-const HEADER_OFFSET = 88; // safe for fixed header + spacing
+const HEADER_OFFSET = 88; // fixed header offset for smooth scroll
 
 function scrollToId(id) {
   const el = document.getElementById(id);
   if (!el) return;
 
-  const y =
-    el.getBoundingClientRect().top + window.pageYOffset - HEADER_OFFSET;
-
+  const y = el.getBoundingClientRect().top + window.pageYOffset - HEADER_OFFSET;
   window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
 }
 
 export default function ZcorHeader() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [appsAnchorEl, setAppsAnchorEl] = React.useState(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -44,6 +52,16 @@ export default function ZcorHeader() {
     { label: "Modules", id: "modules" },
     { label: "Stories", id: "testimonials" },
     { label: "Pricing", id: "pricing" },
+  ];
+
+  // "Apps" pages list (dropdown menu)
+  // You can add routes later. Only /time-entry is implemented now.
+  const appPages = [
+    { label: "Time Entry", path: "/time-entry", icon: <AccessTimeIcon fontSize="small" /> },
+    { label: "Inventory", path: "/inventory", icon: <Inventory2OutlinedIcon fontSize="small" /> },
+    { label: "Schedule", path: "/schedule", icon: <EventNoteOutlinedIcon fontSize="small" /> },
+    { label: "Employees", path: "/employees", icon: <PeopleAltOutlinedIcon fontSize="small" /> },
+    { label: "Settings", path: "/settings", icon: <SettingsOutlinedIcon fontSize="small" /> },
   ];
 
   const goTop = () => {
@@ -60,18 +78,25 @@ export default function ZcorHeader() {
   const goToSection = (id) => {
     setDrawerOpen(false);
 
-    // Stay on "/" with clean URL; just scroll
     if (location.pathname === "/") {
-      // wait a frame in case Drawer just closed
       requestAnimationFrame(() => scrollToId(id));
       return;
     }
 
-    // If on another page, go home and tell LandingPage what to scroll to
+    // clean URL navigation: no hashes
     navigate("/", { state: { scrollTo: id } });
   };
 
   const goDemo = () => goToSection("contact");
+
+  const openAppsMenu = (e) => setAppsAnchorEl(e.currentTarget);
+  const closeAppsMenu = () => setAppsAnchorEl(null);
+
+  const goToPage = (path) => {
+    closeAppsMenu();
+    setDrawerOpen(false);
+    navigate(path);
+  };
 
   return (
     <AppBar
@@ -126,13 +151,17 @@ export default function ZcorHeader() {
 
         {/* Desktop nav */}
         {!isMobile && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             {navItems.map((item) => (
               <Button
                 key={item.id}
                 variant="text"
                 onClick={() => goToSection(item.id)}
-                sx={{ color: "rgba(15,27,16,.80)", fontWeight: 700 }}
+                sx={{
+                  color: "rgba(15,27,16,.80)",
+                  fontWeight: 700,
+                  textTransform: "none",
+                }}
               >
                 {item.label}
               </Button>
@@ -146,25 +175,73 @@ export default function ZcorHeader() {
                 borderRadius: 999,
                 px: 2,
                 ml: 1,
+                textTransform: "none",
                 boxShadow: "0 10px 24px rgba(15,27,16,.12)",
               }}
             >
               Book a demo
             </Button>
 
-            <IconButton
-              component={RouterLink}
-              to="/login"
-              aria-label="Login"
-              sx={{
-                ml: 0.5,
-                border: "1px solid rgba(15,27,16,.18)",
-                bgcolor: "rgba(255,255,255,.35)",
-                borderRadius: 999,
+            {/* NEW: Apps menu icon (dropdown) */}
+            <Tooltip title="Menu">
+              <IconButton
+                onClick={openAppsMenu}
+                aria-label="Open app menu"
+                aria-controls={appsAnchorEl ? "zcor-apps-menu" : undefined}
+                aria-haspopup="true"
+                aria-expanded={appsAnchorEl ? "true" : undefined}
+                sx={{
+                  ml: 1,
+                  border: "1px solid rgba(15,27,16,.18)",
+                  bgcolor: "rgba(255,255,255,.35)",
+                  borderRadius: 999,
+                }}
+              >
+                <DashboardCustomizeOutlinedIcon />
+              </IconButton>
+            </Tooltip>
+
+            <Menu
+              id="zcor-apps-menu"
+              anchorEl={appsAnchorEl}
+              open={Boolean(appsAnchorEl)}
+              onClose={closeAppsMenu}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+              PaperProps={{
+                sx: {
+                  mt: 1,
+                  borderRadius: 2,
+                  minWidth: 220,
+                  border: "1px solid rgba(15,27,16,.10)",
+                  boxShadow: "0 18px 50px rgba(15,27,16,.15)",
+                },
               }}
             >
-              <LoginIcon />
-            </IconButton>
+              {appPages.map((p) => (
+                <MenuItem
+                  key={p.path}
+                  onClick={() => goToPage(p.path)}
+                  sx={{ gap: 1.3, py: 1.1 }}
+                >
+                  <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
+                    {p.icon}
+                  </Box>
+                  <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
+                    {p.label}
+                  </Typography>
+                </MenuItem>
+              ))}
+              <Divider />
+              <MenuItem onClick={() => goToPage("/login")} sx={{ gap: 1.3, py: 1.1 }}>
+                <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
+                  <LoginIcon fontSize="small" />
+                </Box>
+                <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
+                  Login
+                </Typography>
+              </MenuItem>
+            </Menu>
           </Box>
         )}
 
@@ -178,6 +255,7 @@ export default function ZcorHeader() {
               sx={{
                 borderRadius: 999,
                 px: 2,
+                textTransform: "none",
                 boxShadow: "0 10px 24px rgba(15,27,16,.12)",
               }}
             >
@@ -197,6 +275,7 @@ export default function ZcorHeader() {
               <LoginIcon />
             </IconButton>
 
+            {/* Mobile drawer button */}
             <IconButton
               onClick={() => setDrawerOpen(true)}
               aria-label="Open menu"
@@ -213,12 +292,35 @@ export default function ZcorHeader() {
       </Toolbar>
 
       {/* Mobile drawer */}
-      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 280, p: 1.5 }}>
-          <Typography sx={{ fontWeight: 800, px: 1, py: 1 }}>
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      >
+        <Box sx={{ width: 300, p: 1.5 }}>
+          <Typography sx={{ fontWeight: 900, px: 1, py: 1 }}>
             Menu
           </Typography>
 
+          <Typography sx={{ fontWeight: 800, px: 1, pt: 1, pb: 0.5, color: "rgba(15,27,16,.65)" }}>
+            Pages
+          </Typography>
+          <List>
+            {appPages.map((p) => (
+              <ListItemButton key={p.path} onClick={() => goToPage(p.path)}>
+                <Box sx={{ mr: 1.5, color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
+                  {p.icon}
+                </Box>
+                <ListItemText primary={p.label} />
+              </ListItemButton>
+            ))}
+          </List>
+
+          <Divider sx={{ my: 1 }} />
+
+          <Typography sx={{ fontWeight: 800, px: 1, pt: 1, pb: 0.5, color: "rgba(15,27,16,.65)" }}>
+            Landing
+          </Typography>
           <List>
             {navItems.map((item) => (
               <ListItemButton key={item.id} onClick={() => goToSection(item.id)}>
