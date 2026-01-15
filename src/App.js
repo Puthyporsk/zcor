@@ -12,6 +12,8 @@ import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import TimeEntryPage from "./pages/TimeEntry/TimeEntryPage";
+import DashboardPage from "./pages/DashboardPage";
+
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -33,6 +35,7 @@ export default function App() {
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
                 <Route element={<ProtectedRoute />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/time-entry" element={<TimeEntryPage />} />
                 </Route>
 

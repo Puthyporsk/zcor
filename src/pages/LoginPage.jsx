@@ -55,7 +55,7 @@ export default function LoginPage() {
       });
 
       // go somewhere after login
-      navigate("/time-entry");
+      navigate("/dashboard");
     } catch (err) {
       // backend sends messages like "Invalid credentials" or "Multiple businesses..."
       setServerError(err?.message || "Login failed");

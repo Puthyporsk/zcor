@@ -24,6 +24,7 @@ import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
@@ -59,8 +60,8 @@ export default function ZcorHeader() {
   ];
 
   // "Apps" pages list (dropdown menu)
-  // You can add routes later. Only /time-entry is implemented now.
   const appPages = [
+    { label: "Dashboard", path: "/dashboard", icon: <DashboardOutlinedIcon fontSize="small" /> },
     { label: "Time Entry", path: "/time-entry", icon: <AccessTimeIcon fontSize="small" /> },
     { label: "Inventory", path: "/inventory", icon: <Inventory2OutlinedIcon fontSize="small" /> },
     { label: "Schedule", path: "/schedule", icon: <EventNoteOutlinedIcon fontSize="small" /> },
