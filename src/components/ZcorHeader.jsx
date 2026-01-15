@@ -15,7 +15,7 @@ import { useTheme } from "@mui/material/styles";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tooltip from "@mui/material/Tooltip";
-
+import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from "@mui/icons-material/Menu";
 import LoginIcon from "@mui/icons-material/Login";
 import DashboardCustomizeOutlinedIcon from "@mui/icons-material/DashboardCustomizeOutlined";
@@ -26,6 +26,8 @@ import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
+
+import { useAuth } from "../context/AuthContext";
 
 const HEADER_OFFSET = 88; // fixed header offset for smooth scroll
 
@@ -46,6 +48,8 @@ export default function ZcorHeader() {
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  const { isLoggedIn, logout } = useAuth();
 
   const navItems = [
     { label: "Features", id: "features" },
@@ -97,6 +101,13 @@ export default function ZcorHeader() {
     setDrawerOpen(false);
     navigate(path);
   };
+
+  const onLogout = async () => {
+    closeAppsMenu();
+    setDrawerOpen(false);
+    await logout();
+    navigate("/");
+  }
 
   return (
     <AppBar
@@ -182,7 +193,6 @@ export default function ZcorHeader() {
               Book a demo
             </Button>
 
-            {/* NEW: Apps menu icon (dropdown) */}
             <Tooltip title="Menu">
               <IconButton
                 onClick={openAppsMenu}
@@ -218,7 +228,7 @@ export default function ZcorHeader() {
                 },
               }}
             >
-              {appPages.map((p) => (
+              {isLoggedIn && appPages.map((p) => (
                 <MenuItem
                   key={p.path}
                   onClick={() => goToPage(p.path)}
@@ -232,15 +242,31 @@ export default function ZcorHeader() {
                   </Typography>
                 </MenuItem>
               ))}
-              <Divider />
-              <MenuItem onClick={() => goToPage("/login")} sx={{ gap: 1.3, py: 1.1 }}>
-                <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
-                  <LoginIcon fontSize="small" />
-                </Box>
-                <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
-                  Login
-                </Typography>
-              </MenuItem>
+              {!isLoggedIn ? 
+              (
+                <MenuItem onClick={() => goToPage("/login")} sx={{ gap: 1.3, py: 1.1 }}>
+                  <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
+                    <LoginIcon fontSize="small" />
+                  </Box>
+                  <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
+                    Login
+                  </Typography>
+                </MenuItem>
+              ) 
+              : 
+              (
+                <>
+                  <Divider sx={{ my: 0.5 }} />
+                  <MenuItem onClick={() => onLogout()} sx={{ gap: 1.3, py: 1.1 }}>
+                    <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
+                      <LogoutIcon fontSize="small" />
+                    </Box>
+                    <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
+                      Logout
+                    </Typography>
+                  </MenuItem>
+                </>
+              )}
             </Menu>
           </Box>
         )}
@@ -261,19 +287,6 @@ export default function ZcorHeader() {
             >
               Book
             </Button>
-
-            <IconButton
-              component={RouterLink}
-              to="/login"
-              aria-label="Login"
-              sx={{
-                border: "1px solid rgba(15,27,16,.18)",
-                bgcolor: "rgba(255,255,255,.35)",
-                borderRadius: 999,
-              }}
-            >
-              <LoginIcon />
-            </IconButton>
 
             {/* Mobile drawer button */}
             <IconButton
@@ -302,19 +315,21 @@ export default function ZcorHeader() {
             Menu
           </Typography>
 
-          <Typography sx={{ fontWeight: 800, px: 1, pt: 1, pb: 0.5, color: "rgba(15,27,16,.65)" }}>
-            Pages
-          </Typography>
-          <List>
-            {appPages.map((p) => (
-              <ListItemButton key={p.path} onClick={() => goToPage(p.path)}>
-                <Box sx={{ mr: 1.5, color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
-                  {p.icon}
-                </Box>
-                <ListItemText primary={p.label} />
-              </ListItemButton>
-            ))}
-          </List>
+          { isLoggedIn && <>
+            <Typography sx={{ fontWeight: 800, px: 1, pt: 1, pb: 0.5, color: "rgba(15,27,16,.65)" }}>
+              Pages
+            </Typography>
+            <List>
+              {appPages.map((p) => (
+                <ListItemButton key={p.path} onClick={() => goToPage(p.path)}>
+                  <Box sx={{ mr: 1.5, color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
+                    {p.icon}
+                  </Box>
+                  <ListItemText primary={p.label} />
+                </ListItemButton>
+              ))}
+            </List>
+          </>}
 
           <Divider sx={{ my: 1 }} />
 
@@ -336,13 +351,19 @@ export default function ZcorHeader() {
               <ListItemText primary="Book a demo" />
             </ListItemButton>
 
-            <ListItemButton
-              component={RouterLink}
-              to="/login"
-              onClick={() => setDrawerOpen(false)}
-            >
-              <ListItemText primary="Login" />
-            </ListItemButton>
+            {!isLoggedIn ? (
+              <ListItemButton onClick={() => goToPage("/login")}>
+                <ListItemText primary="Login" />
+              </ListItemButton>
+            ) : (
+              <ListItemButton
+                component={RouterLink}
+                to="/"
+                onClick={() => onLogout()}
+              >
+                <ListItemText primary="Logout" />
+              </ListItemButton>
+            )}
 
             <ListItemButton onClick={goTop}>
               <ListItemText primary="Back to top" />

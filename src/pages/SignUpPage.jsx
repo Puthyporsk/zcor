@@ -1,4 +1,5 @@
-import { useForm } from "react-hook-form";
+import React from "react";
+import { useForm, Controller } from "react-hook-form";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 
 import Box from "@mui/material/Box";
@@ -10,46 +11,13 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Checkbox from "@mui/material/Checkbox";
 import Link from "@mui/material/Link";
+import Alert from "@mui/material/Alert";
 
-const bg = "#CFF7E3";
-const dark = "#214318";
+import ZcorPill from "../components/ZcorPill";
+import { useAuth } from "../context/AuthContext";
 
-function ZcorPill() {
-  return (
-    <Box
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 1,
-        px: 1.3,
-        py: 0.7,
-        borderRadius: 999,
-        bgcolor: "rgba(15,27,16,.86)",
-        color: "#fff",
-        boxShadow: "0 12px 28px rgba(15,27,16,.18)",
-      }}
-      aria-label="ZCOR"
-    >
-      <Box
-        sx={{
-          width: 18,
-          height: 18,
-          borderRadius: 999,
-          bgcolor: "rgba(255,255,255,.18)",
-          display: "grid",
-          placeItems: "center",
-          fontSize: 12,
-          fontWeight: 800,
-        }}
-      >
-        Z
-      </Box>
-      <Typography sx={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em" }}>
-        ZCOR
-      </Typography>
-    </Box>
-  );
-}
+const BG = "#CFF7E3";
+const DARK = "#214318";
 
 function GoogleIcon() {
   return (
@@ -91,15 +59,21 @@ function GithubIcon() {
 
 export default function SignUpPage() {
   const navigate = useNavigate();
+  const { register: registerUser } = useAuth();
+
+  const [serverError, setServerError] = React.useState("");
+  const [successMsg, setSuccessMsg] = React.useState("");
 
   const {
     register,
     handleSubmit,
     watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
-      fullName: "",
+      firstName: "",
+      lastName: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -110,18 +84,41 @@ export default function SignUpPage() {
   const password = watch("password");
 
   const onSubmit = async (data) => {
-    // TODO: hook this to backend
-    console.log("Sign up submitted:", data);
+    setServerError("");
+    setSuccessMsg("");
 
-    // Example: navigate to login after success
-    navigate("/login");
+    const firstName = data.firstName.trim();
+    const lastName = data.lastName.trim();
+    const email = data.email.trim();
+
+    // Backend requires businessName currently
+    const businessName = firstName ? `${firstName}'s Business` : "My Business";
+    const displayName = `${firstName} ${lastName}`.trim();
+
+    try {
+      await registerUser({
+        businessName,
+        firstName,
+        lastName,
+        displayName,
+        email,
+        password: data.password,
+      });
+
+      setSuccessMsg("Account created! Please sign in.");
+      setTimeout(() => {
+        navigate("/login", { state: { justSignedUp: true } });
+      }, 300);
+    } catch (err) {
+      setServerError(err?.message || "Sign up failed. Please try again.");
+    }
   };
 
   return (
     <Box
       sx={{
-        minHeight: "calc(100vh - 64px)", // accounts for your fixed AppBar + Toolbar spacer
-        background: bg,
+        minHeight: "calc(100vh - 64px)",
+        background: BG,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -138,144 +135,174 @@ export default function SignUpPage() {
           elevation={0}
           sx={{
             borderRadius: 2.5,
-            border: "1px solid rgba(15,27,16,.10)",
-            boxShadow: "0 18px 55px rgba(15,27,16,.16)",
+            border: "1px solid rgba(15,27,16,0.10)",
+            boxShadow: "0 18px 55px rgba(15,27,16,0.16)",
             px: 3,
             py: 3,
+            textAlign: "left",
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 800 }}>
+          <Typography variant="h6" sx={{ fontWeight: 800, textAlign: "center" }}>
             Create an account
           </Typography>
-          <Typography sx={{ mt: 0.5, color: "rgba(15,27,16,.62)", fontSize: 13 }}>
+          <Typography
+            sx={{
+              mt: 0.5,
+              color: "rgba(15,27,16,0.62)",
+              fontSize: 13,
+              textAlign: "center",
+            }}
+          >
             Enter your details to get started with ZCOR
           </Typography>
 
-          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 3, textAlign: "left" }}>
+          {serverError ? (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {serverError}
+            </Alert>
+          ) : null}
+
+          {successMsg ? (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              {successMsg}
+            </Alert>
+          ) : null}
+
+          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 3 }}>
             <Stack spacing={2}>
-                <Box>
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
-                    Full name
-                    </Typography>
-                    <TextField
+              <Stack direction="row" spacing={1.5}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
+                    First name
+                  </Typography>
+                  <TextField
                     fullWidth
                     size="small"
-                    placeholder="John Doe"
-                    {...register("fullName", { required: "Full name is required" })}
-                    error={!!errors.fullName}
-                    helperText={errors.fullName?.message || " "}
-                    />
+                    placeholder="John"
+                    {...register("firstName", { required: "First name is required" })}
+                    error={!!errors.firstName}
+                    helperText={errors.firstName?.message || " "}
+                  />
                 </Box>
 
-                <Box>
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
-                    Email
-                    </Typography>
-                    <TextField
+                <Box sx={{ flex: 1 }}>
+                  <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
+                    Last name
+                  </Typography>
+                  <TextField
                     fullWidth
                     size="small"
-                    placeholder="name@example.com"
-                    {...register("email", {
-                        required: "Email is required",
-                        pattern: {
-                        value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                        message: "Invalid email address",
-                        },
-                    })}
-                    error={!!errors.email}
-                    helperText={errors.email?.message || " "}
-                    />
+                    placeholder="Doe"
+                    {...register("lastName", { required: "Last name is required" })}
+                    error={!!errors.lastName}
+                    helperText={errors.lastName?.message || " "}
+                  />
                 </Box>
+              </Stack>
 
-                <Box>
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
-                    Password
-                    </Typography>
-                    <TextField
-                    fullWidth
-                    size="small"
-                    type="password"
-                    placeholder="Create a strong password"
-                    {...register("password", {
-                        required: "Password is required",
-                        minLength: { value: 8, message: "Must be at least 8 characters" },
-                    })}
-                    error={!!errors.password}
-                    helperText={errors.password?.message || "Must be at least 8 characters"}
-                    />
-                </Box>
+              <Box>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
+                  Email
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: "Invalid email address",
+                    },
+                  })}
+                  error={!!errors.email}
+                  helperText={errors.email?.message || " "}
+                />
+              </Box>
 
-                <Box>
-                    <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
-                    Confirm password
-                    </Typography>
-                    <TextField
-                    fullWidth
-                    size="small"
-                    type="password"
-                    placeholder="Re-enter your password"
-                    {...register("confirmPassword", {
-                        required: "Confirm your password",
-                        validate: (v) => v === password || "Passwords do not match",
-                    })}
-                    error={!!errors.confirmPassword}
-                    helperText={errors.confirmPassword?.message || " "}
-                    />
-                </Box>
+              <Box>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
+                  Password
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="password"
+                  placeholder="Create a strong password"
+                  autoComplete="new-password"
+                  {...register("password", {
+                    required: "Password is required",
+                    minLength: { value: 8, message: "Must be at least 8 characters" },
+                  })}
+                  error={!!errors.password}
+                  helperText={errors.password?.message || "Must be at least 8 characters"}
+                />
+              </Box>
 
-                <Box
-                    sx={{
-                        display: "flex",
-                        alignItems: "center", // ✅ centers checkbox vs text block
-                        gap: 1.25,
-                        mt: 0.5,
-                    }}
-                    >
+              <Box>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
+                  Confirm password
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="password"
+                  placeholder="Re-enter your password"
+                  autoComplete="new-password"
+                  {...register("confirmPassword", {
+                    required: "Confirm your password",
+                    validate: (v) => v === password || "Passwords do not match",
+                  })}
+                  error={!!errors.confirmPassword}
+                  helperText={errors.confirmPassword?.message || " "}
+                />
+              </Box>
+
+              {/* Terms */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mt: 0.25 }}>
+                <Controller
+                  name="terms"
+                  control={control}
+                  rules={{ validate: (v) => v === true || "You must accept the terms" }}
+                  render={({ field }) => (
                     <Checkbox
-                        {...register("terms", { required: "You must accept the terms" })}
-                        sx={{
-                        p: 0, // remove default padding so it doesn't push alignment
-                        "& .MuiSvgIcon-root": { fontSize: 18 }, // closer to your Figma size
-                        }}
+                      checked={!!field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                      sx={{ p: 0, "& .MuiSvgIcon-root": { fontSize: 18 } }}
+                      inputProps={{ "aria-label": "Accept terms" }}
                     />
+                  )}
+                />
 
-                    <Typography
-                        sx={{
-                        fontSize: 12.5,
-                        color: "rgba(15,27,16,.75)",
-                        lineHeight: 1.35,
-                        display: "flex",
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                        gap: "4px",
-                        }}
-                    >
-                        I agree to the{" "}
-                        <Link href="#" underline="hover" sx={{ fontWeight: 800, color: "inherit" }}>
-                        Terms of Service
-                        </Link>
-                        and{" "}
-                        <Link href="#" underline="hover" sx={{ fontWeight: 800, color: "inherit" }}>
-                        Privacy Policy
-                        </Link>
-                    </Typography>
-                    </Box>
-
-                    {errors.terms ? (
-                    <Typography sx={{ mt: 0.75, fontSize: 12, color: "#b00020" }}>
-                        {errors.terms.message}
-                    </Typography>
-                    ) : (
-                    <Typography sx={{ mt: 0.75, fontSize: 12, color: "transparent" }}>.</Typography>
-                    )}
-
+                <Typography
+                  sx={{
+                    fontSize: 12.5,
+                    color: "rgba(15,27,16,0.75)",
+                    lineHeight: 1.35,
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "4px",
+                  }}
+                >
+                  I agree to the{" "}
+                  <Link href="#" underline="hover" sx={{ fontWeight: 800, color: "inherit" }}>
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="#" underline="hover" sx={{ fontWeight: 800, color: "inherit" }}>
+                    Privacy Policy
+                  </Link>
+                </Typography>
+              </Box>
 
               {errors.terms ? (
-                <Typography sx={{ mt: -1, fontSize: 12, color: "#b00020" }}>
+                <Typography sx={{ mt: 0.5, fontSize: 12, color: "#b00020" }}>
                   {errors.terms.message}
                 </Typography>
               ) : (
-                <Typography sx={{ mt: -1, fontSize: 12, color: "transparent" }}>.</Typography>
+                <Typography sx={{ mt: 0.5, fontSize: 12, color: "transparent" }}>.</Typography>
               )}
 
               <Button
@@ -283,18 +310,18 @@ export default function SignUpPage() {
                 variant="contained"
                 disabled={isSubmitting}
                 sx={{
-                  bgcolor: dark,
+                  bgcolor: DARK,
                   borderRadius: 1.5,
                   py: 1.2,
                   fontWeight: 800,
                   "&:hover": { bgcolor: "#183312" },
                 }}
               >
-                Create account
+                {isSubmitting ? "Creating..." : "Create account"}
               </Button>
 
               <Divider sx={{ my: 1.5 }}>
-                <Typography sx={{ fontSize: 10, letterSpacing: ".18em", color: "rgba(15,27,16,.55)" }}>
+                <Typography sx={{ fontSize: 10, letterSpacing: ".18em", color: "rgba(15,27,16,0.55)" }}>
                   OR CONTINUE WITH
                 </Typography>
               </Divider>
@@ -306,9 +333,9 @@ export default function SignUpPage() {
                   sx={{
                     borderRadius: 1.5,
                     py: 1.0,
-                    borderColor: "rgba(15,27,16,.15)",
-                    color: "rgba(15,27,16,.85)",
-                    "&:hover": { borderColor: "rgba(15,27,16,.35)" },
+                    borderColor: "rgba(15,27,16,0.15)",
+                    color: "rgba(15,27,16,0.85)",
+                    "&:hover": { borderColor: "rgba(15,27,16,0.35)" },
                   }}
                   onClick={() => console.log("Google signup")}
                 >
@@ -322,9 +349,9 @@ export default function SignUpPage() {
                   sx={{
                     borderRadius: 1.5,
                     py: 1.0,
-                    borderColor: "rgba(15,27,16,.15)",
-                    color: "rgba(15,27,16,.85)",
-                    "&:hover": { borderColor: "rgba(15,27,16,.35)" },
+                    borderColor: "rgba(15,27,16,0.15)",
+                    color: "rgba(15,27,16,0.85)",
+                    "&:hover": { borderColor: "rgba(15,27,16,0.35)" },
                   }}
                   onClick={() => console.log("GitHub signup")}
                 >
@@ -333,39 +360,15 @@ export default function SignUpPage() {
                 </Button>
               </Stack>
 
-              <Typography sx={{ textAlign: "center", fontSize: 12.5, color: "rgba(15,27,16,.62)" }}>
+              <Typography sx={{ mt: 1.5, fontSize: 13, color: "rgba(15,27,16,0.70)", textAlign: "center" }}>
                 Already have an account?{" "}
-                <Link component={RouterLink} to="/login" underline="hover" sx={{ fontWeight: 800, color: dark }}>
+                <Link component={RouterLink} to="/login" underline="hover" sx={{ fontWeight: 900, color: "inherit" }}>
                   Sign in
                 </Link>
               </Typography>
             </Stack>
           </Box>
         </Paper>
-
-        {/* Bottom footer */}
-        <Box sx={{ mt: 3, textAlign: "center" }}>
-          <Typography sx={{ fontSize: 11.5, color: "rgba(15,27,16,.50)" }}>
-            © {new Date().getFullYear()} ZCOR. All rights reserved.
-          </Typography>
-
-          <Stack
-            direction="row"
-            spacing={2}
-            justifyContent="center"
-            sx={{ mt: 0.8, color: "rgba(15,27,16,.55)" }}
-          >
-            <Link href="#" underline="hover" sx={{ fontSize: 11.5, color: "inherit" }}>
-              Terms
-            </Link>
-            <Link href="#" underline="hover" sx={{ fontSize: 11.5, color: "inherit" }}>
-              Privacy
-            </Link>
-            <Link href="#" underline="hover" sx={{ fontSize: 11.5, color: "inherit" }}>
-              Help
-            </Link>
-          </Stack>
-        </Box>
       </Box>
     </Box>
   );

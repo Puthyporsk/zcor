@@ -1,7 +1,6 @@
 import React from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -13,6 +12,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Link from "@mui/material/Link";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
+import Alert from "@mui/material/Alert";
 
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
@@ -20,63 +20,17 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { FcGoogle } from "react-icons/fc";
 import { FaGithub } from "react-icons/fa";
 
+import { useAuth } from "../context/AuthContext";
+import ZcorPill from "../components/ZcorPill";
+
 const BG = "#CFF7E3";
 const DARK = "#214318";
 
-function ZcorPill({ onClick }) {
-  return (
-    <Box
-      component="button"
-      type="button"
-      onClick={onClick}
-      sx={{
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-      aria-label="ZCOR"
-    >
-      <Box
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 1,
-          px: 1.4,
-          py: 0.8,
-          borderRadius: 999,
-          bgcolor: "rgba(15,27,16,.86)",
-          color: "#fff",
-          boxShadow: "0 12px 28px rgba(15,27,16,.18)",
-        }}
-      >
-        <Box
-          sx={{
-            width: 20,
-            height: 20,
-            borderRadius: 999,
-            bgcolor: "rgba(255,255,255,.18)",
-            display: "grid",
-            placeItems: "center",
-            fontSize: 12,
-            fontWeight: 900,
-          }}
-        >
-          Z
-        </Box>
-        <Typography sx={{ fontSize: 12, fontWeight: 900, letterSpacing: ".06em" }}>
-          ZCOR
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
-
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth(); // global auth
   const [showPassword, setShowPassword] = React.useState(false);
+  const [serverError, setServerError] = React.useState("");
 
   const {
     register,
@@ -91,15 +45,27 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data) => {
-    console.log("Login submitted:", data);
-    // TODO: hook up real auth
-    // navigate("/dashboard");
+    setServerError("");
+    try {
+      await login({
+        email: data.email,
+        password: data.password,
+        remember: Boolean(data.remember),
+        // businessSlug: data.businessSlug, // add later if you want a field
+      });
+
+      // go somewhere after login
+      navigate("/time-entry");
+    } catch (err) {
+      // backend sends messages like "Invalid credentials" or "Multiple businesses..."
+      setServerError(err?.message || "Login failed");
+    }
   };
 
   return (
     <Box
       sx={{
-        minHeight: "calc(100vh - 64px)", // keeps room for your fixed AppBar
+        minHeight: "calc(100vh - 64px)",
         background: BG,
         display: "flex",
         alignItems: "center",
@@ -129,6 +95,12 @@ export default function LoginPage() {
           <Typography sx={{ mt: 0.6, color: "rgba(15,27,16,.62)", fontSize: 13 }}>
             Enter your credentials to access your account
           </Typography>
+
+          {serverError ? (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {serverError}
+            </Alert>
+          ) : null}
 
           <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 3, textAlign: "left" }}>
             <Stack spacing={2.2}>
@@ -200,12 +172,12 @@ export default function LoginPage() {
                 }}
               />
 
-              {/* Remember (ONLY checkbox toggles now) */}
+              {/* Remember */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                 <Checkbox
                   {...register("remember")}
                   sx={{
-                    p: 0, // remove padding so it doesn't expand click target into the text
+                    p: 0,
                     "& .MuiSvgIcon-root": { fontSize: 18 },
                   }}
                   inputProps={{ "aria-label": "Remember me for 30 days" }}
@@ -228,7 +200,7 @@ export default function LoginPage() {
                   "&:hover": { bgcolor: "#183312" },
                 }}
               >
-                Sign in
+                {isSubmitting ? "Signing in..." : "Sign in"}
               </Button>
 
               {/* Divider */}
@@ -283,43 +255,6 @@ export default function LoginPage() {
             </Stack>
           </Box>
         </Paper>
-
-        {/* Footer */}
-        <Box sx={{ mt: 3, textAlign: "center" }}>
-          <Typography sx={{ fontSize: 11.5, color: "rgba(15,27,16,.50)" }}>
-            © {new Date().getFullYear()} ZCOR. All rights reserved.
-          </Typography>
-
-          <Stack direction="row" spacing={2} justifyContent="center" sx={{ mt: 0.8, color: "rgba(15,27,16,.55)" }}>
-            <Link
-              component="button"
-              type="button"
-              underline="hover"
-              onClick={() => console.log("Terms clicked")}
-              sx={{ fontSize: 11.5, color: "inherit" }}
-            >
-              Terms
-            </Link>
-            <Link
-              component="button"
-              type="button"
-              underline="hover"
-              onClick={() => console.log("Privacy clicked")}
-              sx={{ fontSize: 11.5, color: "inherit" }}
-            >
-              Privacy
-            </Link>
-            <Link
-              component="button"
-              type="button"
-              underline="hover"
-              onClick={() => console.log("Help clicked")}
-              sx={{ fontSize: 11.5, color: "inherit" }}
-            >
-              Help
-            </Link>
-          </Stack>
-        </Box>
       </Box>
     </Box>
   );
