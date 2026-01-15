@@ -135,7 +135,7 @@ A more detailed architecture diagram and API reference will be added as the proj
 Clone the repository:
 
 ```bash
-git clone https://github.com/<your-username>/zcor.git
+git clone https://github.com/Puthyporsk/zcor.git
 cd zcor
 ```
 
@@ -155,7 +155,7 @@ NODE_ENV=development
 **Frontend** (`/frontend/.env`)
 
 ```env
-VITE_API_BASE_URL=https://your-api-url.example.com
+API_BASE_URL=https://your-api-url.example.com
 ```
 
 > These values are placeholders. Use your own secrets and URLs.
@@ -172,7 +172,7 @@ npm install
 npm run dev
 ```
 
-This should start the API server (e.g., on `http://localhost:4000`) with a basic health endpoint.
+This should start the API server (e.g., on `http://localhost:5000`) with a basic health endpoint.
 
 ---
 
@@ -186,7 +186,7 @@ npm install
 npm run dev
 ```
 
-By default, the frontend will run on something like `http://localhost:5173` (or similar, depending on your tooling). Make sure `VITE_API_BASE_URL` points to your backend URL.
+By default, the frontend will run on something like `http://localhost:3000` (or similar, depending on your tooling). Make sure `API_BASE_URL` points to your backend URL.
 
 ---
 
@@ -213,7 +213,7 @@ zcor/
 │   │   ├── pages/           # Pages (Login, Dashboard, Time, Schedule, Inventory, Admin, …)
 │   │   ├── hooks/           # Custom hooks (e.g., auth, API calls)
 │   │   ├── router/          # Route configuration
-│   │   └── main.tsx / .jsx  # Application entrypoint
+│   │   └── main.jsx  # Application entrypoint
 │   ├── public/
 │   └── package.json
 │
