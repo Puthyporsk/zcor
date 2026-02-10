@@ -9,8 +9,10 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
 import Link from "@mui/material/Link";
+import Alert from "@mui/material/Alert";
 
 import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
+import { useAuth } from "../context/AuthContext";
 
 const BG = "#CFF7E3";
 const DARK = "#214318";
@@ -68,6 +70,9 @@ function ZcorPill({ onClick }) {
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const { forgotPassword } = useAuth();
+  const [serverError, setServerError] = React.useState("");
+  const [serverSuccess, setServerSuccess] = React.useState("");
 
   const {
     register,
@@ -78,8 +83,17 @@ export default function ForgotPasswordPage() {
   });
 
   const onSubmit = async (data) => {
-    console.log("Forgot password:", data);
-    // TODO: call your backend to send reset email
+    setServerError("");
+    setServerSuccess(""); 
+    try {
+      const res = await forgotPassword({
+        email: data.email,
+      });
+          
+      setServerSuccess(res?.message);
+    } catch (err) {
+      setServerError(err?.message);
+    }
   };
 
   return (
@@ -115,6 +129,18 @@ export default function ForgotPasswordPage() {
           <Typography sx={{ mt: 0.8, color: "rgba(15,27,16,.62)", fontSize: 13 }}>
             No worries, we&apos;ll send you reset instructions
           </Typography>
+          
+          {serverError ? (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {serverError}
+            </Alert>
+          ) : null}
+
+          {serverSuccess ? (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              {serverSuccess}
+            </Alert>
+          ) : null}
 
           <Box
             component="form"

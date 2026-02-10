@@ -85,7 +85,7 @@ export default function TimeEntryPage() {
   const [project, setProject] = React.useState("");
   const [task, setTask] = React.useState("");
   const [desc, setDesc] = React.useState("");
-  const [date, setDate] = React.useState("2026-01-04");
+  const [date, setDate] = React.useState(new Date().toISOString().split("T")[0]);
   const [hours, setHours] = React.useState("");
   const [type, setType] = React.useState("Billable");
 

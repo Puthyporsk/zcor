@@ -38,23 +38,20 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
-      email: "",
+      userId: "",
       password: "",
-      remember: false,
     },
   });
 
   const onSubmit = async (data) => {
     setServerError("");
+
     try {
       await login({
-        email: data.email,
+        userId: data.userId,
         password: data.password,
-        remember: Boolean(data.remember),
-        // businessSlug: data.businessSlug, // add later if you want a field
       });
 
-      // go somewhere after login
       navigate("/dashboard");
     } catch (err) {
       // backend sends messages like "Invalid credentials" or "Multiple businesses..."
@@ -107,18 +104,16 @@ export default function LoginPage() {
               {/* Email */}
               <Box>
                 <Typography sx={{ fontSize: 12, fontWeight: 800, mb: 0.6 }}>
-                  Email
+                  User ID
                 </Typography>
                 <TextField
                   fullWidth
                   size="small"
-                  placeholder="name@example.com"
-                  autoComplete="email"
-                  {...register("email", {
-                    required: "Email is required",
+                  placeholder="Enter your User ID"
+                  {...register("userId", {
+                    required: "User ID is required",
                     pattern: {
-                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Invalid email address",
+                      message: "Invalid User ID",
                     },
                   })}
                   error={!!errors.email}
@@ -173,7 +168,7 @@ export default function LoginPage() {
               />
 
               {/* Remember */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+              {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                 <Checkbox
                   {...register("remember")}
                   sx={{
@@ -185,7 +180,7 @@ export default function LoginPage() {
                 <Typography sx={{ fontSize: 12.5, color: "rgba(15,27,16,.75)" }}>
                   Remember me for 30 days
                 </Typography>
-              </Box>
+              </Box> */}
 
               {/* Submit */}
               <Button
@@ -204,14 +199,14 @@ export default function LoginPage() {
               </Button>
 
               {/* Divider */}
-              <Divider sx={{ my: 1.5 }}>
+              {/* <Divider sx={{ my: 1.5 }}>
                 <Typography sx={{ fontSize: 10, letterSpacing: ".18em", color: "rgba(15,27,16,.55)" }}>
                   OR CONTINUE WITH
                 </Typography>
-              </Divider>
+              </Divider> */}
 
               {/* Social */}
-              <Stack direction="row" spacing={1.5}>
+              {/* <Stack direction="row" spacing={1.5}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -243,15 +238,15 @@ export default function LoginPage() {
                   <FaGithub style={{ fontSize: 18, marginRight: 8 }} />
                   GitHub
                 </Button>
-              </Stack>
+              </Stack> */}
 
               {/* Signup */}
-              <Typography sx={{ textAlign: "center", fontSize: 12.5, color: "rgba(15,27,16,.62)" }}>
+              {/* <Typography sx={{ textAlign: "center", fontSize: 12.5, color: "rgba(15,27,16,.62)" }}>
                 Don&apos;t have an account?{" "}
                 <Link component={RouterLink} to="/signup" underline="hover" sx={{ fontWeight: 900, color: DARK }}>
                   Sign up
                 </Link>
-              </Typography>
+              </Typography> */}
             </Stack>
           </Box>
         </Paper>

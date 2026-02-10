@@ -53,10 +53,10 @@ export function AuthProvider({ children }) {
     refreshMe();
   }, [refreshMe]);
 
-  const login = React.useCallback(async ({ email, password, remember = false, businessSlug } = {}) => {
+  const login = React.useCallback(async ({ userId, password } = {}) => {
     const data = await apiFetch("/api/auth/login", {
       method: "POST",
-      body: { email, password, remember, ...(businessSlug ? { businessSlug } : {}) },
+      body: { userId, password},
     });
 
     // backend returns { user } now
@@ -100,9 +100,18 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const forgotPassword = React.useCallback(async ({ email } = {}) => {
+    const data = await apiFetch("/api/auth/forgot-password", {
+      method: "POST",
+      body: { email },
+    });
+
+    return data;
+  }, []);
+
   const value = React.useMemo(
-    () => ({ user, isLoggedIn, loading, login, register, logout, refreshMe }),
-    [user, isLoggedIn, loading, login, register, logout, refreshMe],
+    () => ({ user, isLoggedIn, loading, login, register, logout, forgotPassword, refreshMe }),
+    [user, isLoggedIn, loading, login, register, logout, forgotPassword, refreshMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
