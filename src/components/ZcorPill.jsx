@@ -1,11 +1,12 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
-function ZcorPill({ onClick }) {
+function ZcorPill({ disabled = false, onClick }) {
   return (
     <Box
       component="button"
       type="button"
+      disabled={disabled}
       onClick={onClick}
       sx={{
         border: "none",

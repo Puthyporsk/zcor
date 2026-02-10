@@ -14,59 +14,10 @@ import Alert from "@mui/material/Alert";
 import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
 import { useAuth } from "../context/AuthContext";
 
+import ZcorPill from "../components/ZcorPill";
+
 const BG = "#CFF7E3";
 const DARK = "#214318";
-
-function ZcorPill({ onClick }) {
-  return (
-    <Box
-      component="button"
-      type="button"
-      onClick={onClick}
-      sx={{
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-      aria-label="ZCOR"
-    >
-      <Box
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 1,
-          px: 1.4,
-          py: 0.8,
-          borderRadius: 999,
-          bgcolor: "rgba(15,27,16,.86)",
-          color: "#fff",
-          boxShadow: "0 12px 28px rgba(15,27,16,.18)",
-        }}
-      >
-        <Box
-          sx={{
-            width: 20,
-            height: 20,
-            borderRadius: 999,
-            bgcolor: "rgba(255,255,255,.18)",
-            display: "grid",
-            placeItems: "center",
-            fontSize: 12,
-            fontWeight: 900,
-          }}
-        >
-          Z
-        </Box>
-        <Typography sx={{ fontSize: 12, fontWeight: 900, letterSpacing: ".06em" }}>
-          ZCOR
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -89,6 +40,8 @@ export default function ForgotPasswordPage() {
       const res = await forgotPassword({
         email: data.email,
       });
+
+      console.log(res);
           
       setServerSuccess(res?.message);
     } catch (err) {
@@ -110,7 +63,7 @@ export default function ForgotPasswordPage() {
     >
       <Box sx={{ width: "100%", maxWidth: 560, textAlign: "center" }}>
         <Box sx={{ mb: 3 }}>
-          <ZcorPill onClick={() => navigate("/")} />
+          <ZcorPill disabled={true} onClick={() => navigate("/")} />
         </Box>
 
         <Paper

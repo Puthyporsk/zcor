@@ -109,9 +109,18 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const resetPassword = React.useCallback(async ({ token, newPassword } = {}) => {
+    const data = await apiFetch("/api/auth/reset-password", {
+      method: "POST",
+      body: { token, newPassword },
+    });
+
+    return data;
+  }, []);
+
   const value = React.useMemo(
-    () => ({ user, isLoggedIn, loading, login, register, logout, forgotPassword, refreshMe }),
-    [user, isLoggedIn, loading, login, register, logout, forgotPassword, refreshMe],
+    () => ({ user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, refreshMe }),
+    [user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, refreshMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
