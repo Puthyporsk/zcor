@@ -73,7 +73,7 @@ export default function LoginPage() {
     >
       <Box sx={{ width: "100%", maxWidth: 520, textAlign: "center" }}>
         <Box sx={{ mb: 3 }}>
-          <ZcorPill onClick={() => navigate("/")} />
+          <ZcorPill disabled={true} onClick={() => navigate("/")} />
         </Box>
 
         <Paper
