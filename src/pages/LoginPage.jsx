@@ -6,9 +6,7 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
-import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
-import Checkbox from "@mui/material/Checkbox";
 import Link from "@mui/material/Link";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -16,9 +14,6 @@ import Alert from "@mui/material/Alert";
 
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-
-import { FcGoogle } from "react-icons/fc";
-import { FaGithub } from "react-icons/fa";
 
 import { useAuth } from "../context/AuthContext";
 import ZcorPill from "../components/ZcorPill";
@@ -167,21 +162,6 @@ export default function LoginPage() {
                 }}
               />
 
-              {/* Remember */}
-              {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-                <Checkbox
-                  {...register("remember")}
-                  sx={{
-                    p: 0,
-                    "& .MuiSvgIcon-root": { fontSize: 18 },
-                  }}
-                  inputProps={{ "aria-label": "Remember me for 30 days" }}
-                />
-                <Typography sx={{ fontSize: 12.5, color: "rgba(15,27,16,.75)" }}>
-                  Remember me for 30 days
-                </Typography>
-              </Box> */}
-
               {/* Submit */}
               <Button
                 type="submit"
@@ -197,56 +177,6 @@ export default function LoginPage() {
               >
                 {isSubmitting ? "Signing in..." : "Sign in"}
               </Button>
-
-              {/* Divider */}
-              {/* <Divider sx={{ my: 1.5 }}>
-                <Typography sx={{ fontSize: 10, letterSpacing: ".18em", color: "rgba(15,27,16,.55)" }}>
-                  OR CONTINUE WITH
-                </Typography>
-              </Divider> */}
-
-              {/* Social */}
-              {/* <Stack direction="row" spacing={1.5}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={() => console.log("Google login")}
-                  sx={{
-                    borderRadius: 1.5,
-                    py: 1.0,
-                    borderColor: "rgba(15,27,16,.15)",
-                    color: "rgba(15,27,16,.85)",
-                    "&:hover": { borderColor: "rgba(15,27,16,.35)" },
-                  }}
-                >
-                  <FcGoogle style={{ fontSize: 18, marginRight: 8 }} />
-                  Google
-                </Button>
-
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  onClick={() => console.log("GitHub login")}
-                  sx={{
-                    borderRadius: 1.5,
-                    py: 1.0,
-                    borderColor: "rgba(15,27,16,.15)",
-                    color: "rgba(15,27,16,.85)",
-                    "&:hover": { borderColor: "rgba(15,27,16,.35)" },
-                  }}
-                >
-                  <FaGithub style={{ fontSize: 18, marginRight: 8 }} />
-                  GitHub
-                </Button>
-              </Stack> */}
-
-              {/* Signup */}
-              {/* <Typography sx={{ textAlign: "center", fontSize: 12.5, color: "rgba(15,27,16,.62)" }}>
-                Don&apos;t have an account?{" "}
-                <Link component={RouterLink} to="/signup" underline="hover" sx={{ fontWeight: 900, color: DARK }}>
-                  Sign up
-                </Link>
-              </Typography> */}
             </Stack>
           </Box>
         </Paper>
