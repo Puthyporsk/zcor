@@ -163,37 +163,39 @@ export default function ZcorHeader() {
 
         {/* Desktop nav */}
         {!isMobile && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            {navItems.map((item) => (
+          <>
+            {window.location.pathname === '/' && <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              {navItems.map((item) => (
+                <Button
+                  key={item.id}
+                  variant="text"
+                  onClick={() => goToSection(item.id)}
+                  sx={{
+                    color: "rgba(15,27,16,.80)",
+                    fontWeight: 700,
+                    textTransform: "none",
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+
               <Button
-                key={item.id}
-                variant="text"
-                onClick={() => goToSection(item.id)}
+                variant="contained"
+                color="primary"
+                onClick={goDemo}
                 sx={{
-                  color: "rgba(15,27,16,.80)",
-                  fontWeight: 700,
+                  borderRadius: 999,
+                  px: 2,
+                  ml: 1,
                   textTransform: "none",
+                  boxShadow: "0 10px 24px rgba(15,27,16,.12)",
                 }}
               >
-                {item.label}
+                Book a demo
               </Button>
-            ))}
-
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={goDemo}
-              sx={{
-                borderRadius: 999,
-                px: 2,
-                ml: 1,
-                textTransform: "none",
-                boxShadow: "0 10px 24px rgba(15,27,16,.12)",
-              }}
-            >
-              Book a demo
-            </Button>
-
+            </Box>
+            }
             <Tooltip title="Menu">
               <IconButton
                 onClick={openAppsMenu}
@@ -211,84 +213,69 @@ export default function ZcorHeader() {
                 <DashboardCustomizeOutlinedIcon />
               </IconButton>
             </Tooltip>
-
             <Menu
-              id="zcor-apps-menu"
-              anchorEl={appsAnchorEl}
-              open={Boolean(appsAnchorEl)}
-              onClose={closeAppsMenu}
-              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-              transformOrigin={{ vertical: "top", horizontal: "right" }}
-              PaperProps={{
-                sx: {
-                  mt: 1,
-                  borderRadius: 2,
-                  minWidth: 220,
-                  border: "1px solid rgba(15,27,16,.10)",
-                  boxShadow: "0 18px 50px rgba(15,27,16,.15)",
-                },
-              }}
-            >
-              {isLoggedIn && appPages.map((p) => (
-                <MenuItem
-                  key={p.path}
-                  onClick={() => goToPage(p.path)}
-                  sx={{ gap: 1.3, py: 1.1 }}
-                >
-                  <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
-                    {p.icon}
-                  </Box>
-                  <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
-                    {p.label}
-                  </Typography>
-                </MenuItem>
-              ))}
-              {!isLoggedIn ? 
-              (
-                <MenuItem onClick={() => goToPage("/login")} sx={{ gap: 1.3, py: 1.1 }}>
-                  <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
-                    <LoginIcon fontSize="small" />
-                  </Box>
-                  <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
-                    Login
-                  </Typography>
-                </MenuItem>
-              ) 
-              : 
-              (
-                <>
-                  <Divider sx={{ my: 0.5 }} />
-                  <MenuItem onClick={() => onLogout()} sx={{ gap: 1.3, py: 1.1 }}>
+                id="zcor-apps-menu"
+                anchorEl={appsAnchorEl}
+                open={Boolean(appsAnchorEl)}
+                onClose={closeAppsMenu}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+                PaperProps={{
+                  sx: {
+                    mt: 1,
+                    borderRadius: 2,
+                    minWidth: 220,
+                    border: "1px solid rgba(15,27,16,.10)",
+                    boxShadow: "0 18px 50px rgba(15,27,16,.15)",
+                  },
+                }}
+              >
+                {isLoggedIn && appPages.map((p) => (
+                  <MenuItem
+                    key={p.path}
+                    onClick={() => goToPage(p.path)}
+                    sx={{ gap: 1.3, py: 1.1 }}
+                  >
                     <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
-                      <LogoutIcon fontSize="small" />
+                      {p.icon}
                     </Box>
                     <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
-                      Logout
+                      {p.label}
                     </Typography>
                   </MenuItem>
-                </>
-              )}
-            </Menu>
-          </Box>
+                ))}
+                {!isLoggedIn ? 
+                (
+                  <MenuItem onClick={() => goToPage("/login")} sx={{ gap: 1.3, py: 1.1 }}>
+                    <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
+                      <LoginIcon fontSize="small" />
+                    </Box>
+                    <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
+                      Login
+                    </Typography>
+                  </MenuItem>
+                ) 
+                : 
+                (
+                  <>
+                    <Divider sx={{ my: 0.5 }} />
+                    <MenuItem onClick={() => onLogout()} sx={{ gap: 1.3, py: 1.1 }}>
+                      <Box sx={{ color: "rgba(15,27,16,.70)", display: "inline-flex" }}>
+                        <LogoutIcon fontSize="small" />
+                      </Box>
+                      <Typography sx={{ fontWeight: 800, fontSize: 14 }}>
+                        Logout
+                      </Typography>
+                    </MenuItem>
+                  </>
+                )}
+              </Menu>
+          </>
         )}
 
         {/* Mobile actions */}
         {isMobile && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={goDemo}
-              sx={{
-                borderRadius: 999,
-                px: 2,
-                textTransform: "none",
-                boxShadow: "0 10px 24px rgba(15,27,16,.12)",
-              }}
-            >
-              Book
-            </Button>
-
             {/* Mobile drawer button */}
             <IconButton
               onClick={() => setDrawerOpen(true)}

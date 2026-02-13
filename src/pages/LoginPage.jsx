@@ -17,6 +17,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import { useAuth } from "../context/AuthContext";
 import ZcorPill from "../components/ZcorPill";
+import ZcorAllRightsReserved from "../components/ZcorAllRightsReserved";
 
 const BG = "#CFF7E3";
 const DARK = "#214318";
@@ -180,6 +181,8 @@ export default function LoginPage() {
             </Stack>
           </Box>
         </Paper>
+        &nbsp;
+        <ZcorAllRightsReserved />
       </Box>
     </Box>
   );

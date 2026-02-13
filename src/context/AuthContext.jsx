@@ -118,9 +118,29 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const changePassword = React.useCallback(async ({ currentPassword, newPassword } = {}) => {
+    const data = await apiFetch("/api/user/me/change-password", {
+      method: "POST",
+      body: { currentPassword, newPassword },
+    });
+
+    return data;
+  }, []);
+
+  const updateMe = React.useCallback(async ({ phone } = {}) => {
+    return apiFetch("/api/user/me", { method: "PATCH", body: { phone } });
+  }, []);
+
+  const uploadAvatar = React.useCallback(async ({ base64, contentType } = {}) => {
+    return apiFetch("/api/user/me/avatar", {
+      method: "PATCH",
+      body: { base64, contentType },
+    });
+  }, []);
+
   const value = React.useMemo(
-    () => ({ user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, refreshMe }),
-    [user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, refreshMe],
+    () => ({ user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, changePassword, updateMe, uploadAvatar, refreshMe }),
+    [user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, changePassword, updateMe, uploadAvatar, refreshMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
