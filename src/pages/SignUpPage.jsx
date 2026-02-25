@@ -1,13 +1,11 @@
 import React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
-import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Checkbox from "@mui/material/Checkbox";
 import Link from "@mui/material/Link";
@@ -19,43 +17,12 @@ import { useAuth } from "../context/AuthContext";
 const BG = "#CFF7E3";
 const DARK = "#214318";
 
-function GoogleIcon() {
-  return (
-    <Box component="span" sx={{ display: "inline-flex", mr: 1 }}>
-      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-        <path
-          fill="#FFC107"
-          d="M43.611 20.083H42V20H24v8h11.303C33.655 32.657 29.227 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.227 4 24 4 12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20c0-1.341-.138-2.65-.389-3.917Z"
-        />
-        <path
-          fill="#FF3D00"
-          d="M6.306 14.691 12.87 19.51C14.644 15.108 18.951 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.227 4 24 4c-7.682 0-14.354 4.33-17.694 10.691Z"
-        />
-        <path
-          fill="#4CAF50"
-          d="M24 44c5.127 0 9.86-1.965 13.409-5.175l-6.19-5.238C29.16 35.091 26.715 36 24 36c-5.205 0-9.619-3.317-11.283-7.946l-6.518 5.02C9.505 39.556 16.227 44 24 44Z"
-        />
-        <path
-          fill="#1976D2"
-          d="M43.611 20.083H42V20H24v8h11.303c-.79 2.205-2.291 4.078-4.294 5.238l.003-.002 6.19 5.238C36.77 39.042 44 34 44 24c0-1.341-.138-2.65-.389-3.917Z"
-        />
-      </svg>
-    </Box>
-  );
-}
-
-function GithubIcon() {
-  return (
-    <Box component="span" sx={{ display: "inline-flex", mr: 1 }}>
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          fill="currentColor"
-          d="M12 .5C5.73.5.75 5.62.75 12c0 5.11 3.29 9.44 7.86 10.97.58.11.79-.26.79-.58v-2.18c-3.2.71-3.87-1.27-3.87-1.27-.52-1.36-1.27-1.72-1.27-1.72-1.04-.73.08-.72.08-.72 1.15.08 1.75 1.22 1.75 1.22 1.02 1.8 2.68 1.28 3.33.98.1-.76.4-1.28.73-1.57-2.55-.3-5.23-1.32-5.23-5.82 0-1.28.44-2.32 1.17-3.14-.12-.3-.51-1.49.11-3.1 0 0 .95-.31 3.12 1.22.9-.26 1.87-.39 2.83-.39.96 0 1.93.13 2.83.39 2.17-1.53 3.12-1.22 3.12-1.22.62 1.61.23 2.8.11 3.1.73.82 1.17 1.86 1.17 3.14 0 4.51-2.69 5.52-5.25 5.81.41.37.78 1.08.78 2.18v3.23c0 .32.21.7.8.58A11.55 11.55 0 0 0 23.25 12C23.25 5.62 18.27.5 12 .5Z"
-        />
-      </svg>
-    </Box>
-  );
-}
+const toUserId = (first = "", last = "") => {
+  const slug = (s) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const f = slug(first);
+  const l = slug(last);
+  return f && l ? `${f}.${l}` : f || l || "";
+};
 
 export default function SignUpPage() {
   const navigate = useNavigate();
@@ -82,26 +49,20 @@ export default function SignUpPage() {
   });
 
   const password = watch("password");
+  const firstName = watch("firstName");
+  const lastName = watch("lastName");
+  const userId = toUserId(firstName, lastName);
 
   const onSubmit = async (data) => {
     setServerError("");
     setSuccessMsg("");
 
-    const firstName = data.firstName.trim();
-    const lastName = data.lastName.trim();
-    const email = data.email.trim();
-
-    // Backend requires businessName currently
-    const businessName = firstName ? `${firstName}'s Business` : "My Business";
-    const displayName = `${firstName} ${lastName}`.trim();
-
     try {
       await registerUser({
-        businessName,
-        firstName,
-        lastName,
-        displayName,
-        email,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        userId: toUserId(data.firstName, data.lastName),
+        email: data.email.trim(),
         password: data.password,
       });
 
@@ -199,6 +160,21 @@ export default function SignUpPage() {
                   />
                 </Box>
               </Stack>
+
+              <Box>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
+                  User ID
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={userId}
+                  disabled
+                  placeholder="Generated from your name"
+                  helperText="Auto-generated — used to sign in"
+                  slotProps={{ htmlInput: { readOnly: true } }}
+                />
+              </Box>
 
               <Box>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
@@ -319,46 +295,6 @@ export default function SignUpPage() {
               >
                 {isSubmitting ? "Creating..." : "Create account"}
               </Button>
-
-              <Divider sx={{ my: 1.5 }}>
-                <Typography sx={{ fontSize: 10, letterSpacing: ".18em", color: "rgba(15,27,16,0.55)" }}>
-                  OR CONTINUE WITH
-                </Typography>
-              </Divider>
-
-              <Stack direction="row" spacing={1.5}>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 1.5,
-                    py: 1.0,
-                    borderColor: "rgba(15,27,16,0.15)",
-                    color: "rgba(15,27,16,0.85)",
-                    "&:hover": { borderColor: "rgba(15,27,16,0.35)" },
-                  }}
-                  onClick={() => console.log("Google signup")}
-                >
-                  <GoogleIcon />
-                  Google
-                </Button>
-
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 1.5,
-                    py: 1.0,
-                    borderColor: "rgba(15,27,16,0.15)",
-                    color: "rgba(15,27,16,0.85)",
-                    "&:hover": { borderColor: "rgba(15,27,16,0.35)" },
-                  }}
-                  onClick={() => console.log("GitHub signup")}
-                >
-                  <GithubIcon />
-                  GitHub
-                </Button>
-              </Stack>
 
               <Typography sx={{ mt: 1.5, fontSize: 13, color: "rgba(15,27,16,0.70)", textAlign: "center" }}>
                 Already have an account?{" "}

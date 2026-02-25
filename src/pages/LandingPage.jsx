@@ -3,12 +3,12 @@ import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/landing.css";
 
 import worldImg from "../assets/world.png";
-
 import timeImg from "../assets/features/time-tracking.png";
 import schedulingImg from "../assets/features/staff-scheduling.png";
 import inventoryImg from "../assets/features/inventory-ops.png";
-
 import previewStripImg from "../assets/zcor-product-preview-strip.png";
+
+import ZcorAllRightsReserved from "../components/ZcorAllRightsReserved";
 
 const HEADER_OFFSET = 88;
 
@@ -317,9 +317,7 @@ export default function LandingPage() {
             >
               Book a demo
             </button>
-            <div className="zcor-footer__fine">
-              © {new Date().getFullYear()} ZCOR. All rights reserved.
-            </div>
+            <ZcorAllRightsReserved />
           </div>
         </div>
       </footer>

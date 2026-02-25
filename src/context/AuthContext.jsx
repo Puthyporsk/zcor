@@ -1,35 +1,7 @@
 import React from "react";
+import { apiFetch } from "../api/api.js";
 
 const AuthContext = React.createContext(null);
-
-// If using CRA proxy, keep API_BASE = "" and use "/api/..."
-const API_BASE = (process.env.REACT_APP_API_URL || "").replace(/\/+$/, "");
-
-async function apiFetch(path, { method = "GET", body } = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    credentials: "include", //send/receive HttpOnly cookies
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const text = await res.text();
-  let payload = null;
-  try {
-    payload = text ? JSON.parse(text) : null;
-  } catch {
-    payload = { message: text };
-  }
-
-  if (!res.ok) {
-    const msg = payload?.message || payload?.error || `Request failed (${res.status})`;
-    throw new Error(msg);
-  }
-
-  return payload;
-}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = React.useState(null);
@@ -65,17 +37,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = React.useCallback(
-    async ({ firstName, lastName, email, password, businessName, displayName } = {}) => {
+    async ({ firstName, lastName, userId, email, password } = {}) => {
       const data = await apiFetch("/api/auth/register", {
         method: "POST",
-        body: {
-          businessName,
-          firstName,
-          lastName,
-          displayName,
-          email,
-          password,
-        },
+        body: { firstName, lastName, userId, email, password },
       });
 
       try {
