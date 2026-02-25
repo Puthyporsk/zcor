@@ -12,6 +12,7 @@ import SignUpPage from "./pages/SignUpPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import TimeEntryPage from "./pages/TimeEntry/TimeEntryPage";
+import TimeReviewPage from "./pages/TimeEntry/TimeReviewPage";
 import DashboardPage from "./pages/DashboardPage";
 import AccountSettings from "./pages/AccountSettings";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
@@ -41,6 +42,7 @@ export default function App() {
                 <Route element={<ProtectedRoute />}>
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/time-entry" element={<TimeEntryPage />} />
+                  <Route path="/time-review" element={<TimeReviewPage />} />
                   <Route path="/calendar" element={<CalendarPage />} />
                   <Route path="/settings" element={<Outlet />}>
                     <Route index element={<AccountSettings />} />

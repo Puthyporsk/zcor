@@ -25,6 +25,7 @@ import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
@@ -50,7 +51,8 @@ export default function ZcorHeader() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, logout, user } = useAuth();
+  const isManagerOrOwner = user?.role === "manager" || user?.role === "owner";
 
   const navItems = [
     { label: "Features", id: "features" },
@@ -63,6 +65,9 @@ export default function ZcorHeader() {
   const appPages = [
     { label: "Dashboard", path: "/dashboard", icon: <DashboardOutlinedIcon fontSize="small" /> },
     { label: "Time Entry", path: "/time-entry", icon: <AccessTimeIcon fontSize="small" /> },
+    ...(isManagerOrOwner
+      ? [{ label: "Time Review", path: "/time-review", icon: <RateReviewOutlinedIcon fontSize="small" /> }]
+      : []),
     { label: "Inventory", path: "/inventory", icon: <Inventory2OutlinedIcon fontSize="small" /> },
     { label: "Schedule", path: "/schedule", icon: <EventNoteOutlinedIcon fontSize="small" /> },
     { label: "Employees", path: "/employees", icon: <PeopleAltOutlinedIcon fontSize="small" /> },

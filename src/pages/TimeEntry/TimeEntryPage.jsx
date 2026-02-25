@@ -23,7 +23,6 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import ViewWeekOutlinedIcon from "@mui/icons-material/ViewWeekOutlined";
-import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 
 import { useAuth } from "../../context/AuthContext";
 import * as teApi from "../../api/timeEntries";
@@ -140,10 +139,7 @@ export default function TimeEntryPage() {
     const load = async () => {
       setLoading(true);
       try {
-        // Managers/owners pass their own _id so they only see their own entries here.
-        // Employees automatically get only their own entries from the API.
-        const params = user.role !== "employee" && user._id ? { userId: user._id } : {};
-        const data = await teApi.getTimeEntries(params);
+        const data = await teApi.getTimeEntries({ userId: user._id });
         if (!cancelled) setEntries(data.map(fromApi));
       } catch (err) {
         if (!cancelled) setSnack({ open: true, severity: "error", message: err.message || "Failed to load entries." });
@@ -256,19 +252,6 @@ export default function TimeEntryPage() {
     } catch (err) {
       setSnack({ open: true, severity: "error", message: err.message || "Failed to submit entries." });
     }
-  };
-
-  const handleExport = () => {
-    const rows = [
-      ["Project", "Task", "Description", "Date", "Hours", "Type", "Status"],
-      ...entries.map((e) => [e.project, e.task, e.desc, formatDate(e.date), e.hours + "h", e.type, e.status]),
-    ];
-    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "timesheet.csv"; a.click();
-    URL.revokeObjectURL(url);
   };
 
   // ── render ───────────────────────────────────────────────────────────────
@@ -438,8 +421,18 @@ export default function TimeEntryPage() {
                         <Typography className="te-entryDesc" variant="body2">{entry.desc}</Typography>
                         <Typography className="te-entryMeta" variant="caption">
                           {formatDate(entry.date)}
-                          {entry.note && <> • <span className="te-entryNote">{entry.note}</span></>}
+                          {entry.note && entry.status !== "Rejected" && <> • <span className="te-entryNote">{entry.note}</span></>}
                         </Typography>
+                        {entry.status === "Rejected" && entry.note && (
+                          <Box sx={{ mt: 0.75, display: "flex", alignItems: "flex-start", gap: 0.5, bgcolor: "rgba(211,47,47,.06)", border: "1px solid rgba(211,47,47,.20)", borderRadius: 1, px: 1, py: 0.75 }}>
+                            <Typography variant="caption" sx={{ color: "error.main", fontWeight: 700, flexShrink: 0 }}>
+                              Reason:
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: "error.dark" }}>
+                              {entry.note}
+                            </Typography>
+                          </Box>
+                        )}
                       </div>
 
                       <div className="te-entryRow__right">
@@ -547,13 +540,7 @@ export default function TimeEntryPage() {
                 >
                   View Full Calendar
                 </Button>
-                <Button
-                  variant="outlined" fullWidth startIcon={<FileDownloadOutlinedIcon />}
-                  className="te-actionBtn" onClick={handleExport}
-                  disabled={entries.length === 0}
-                >
-                  Export Timesheet
-                </Button>
+
               </div>
             </Paper>
           </div>

@@ -18,6 +18,7 @@ import TodayOutlinedIcon from "@mui/icons-material/TodayOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 
 import { useAuth } from "../context/AuthContext";
 import { getTimeEntries } from "../api/timeEntries";
@@ -149,6 +150,40 @@ export default function CalendarPage() {
   const selectedEntries  = selectedDateStr ? (entriesByDate[selectedDateStr] || []) : [];
   const selectedTotal    = selectedEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
 
+  // ── export ───────────────────────────────────────────────────────────────
+  const handleExport = () => {
+    const headers = showAll
+      ? ["Employee", "Project", "Task", "Description", "Date", "Hours", "Type", "Status"]
+      : ["Project", "Task", "Description", "Date", "Hours", "Type", "Status"];
+
+    const rows = visibleEntries.map((e) => {
+      const base = [
+        e.project,
+        e.task,
+        e.description || "",
+        e.date?.slice(0, 10) || "",
+        e.hours,
+        capitalize(e.type || ""),
+        capitalize(e.status || ""),
+      ];
+      return showAll
+        ? [`${e.user?.firstName || ""} ${e.user?.lastName || ""}`.trim(), ...base]
+        : base;
+    });
+
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `timesheet-${MONTHS[month]}-${year}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ── navigation ───────────────────────────────────────────────────────────
   const prevMonth = () => setViewMonth(new Date(year, month - 1, 1));
   const nextMonth = () => setViewMonth(new Date(year, month + 1, 1));
@@ -271,7 +306,9 @@ export default function CalendarPage() {
             )}
           </Paper>
 
-          {/* ── Day detail panel ── */}
+          {/* ── Right column: day detail + quick actions ── */}
+          <Stack spacing={2.5}>
+
           <Paper elevation={0} className="cal-card cal-side">
             <Stack direction="row" spacing={1} alignItems="flex-start">
               <AccessTimeOutlinedIcon fontSize="small" sx={{ opacity: 0.6, mt: 0.25 }} />
@@ -321,6 +358,16 @@ export default function CalendarPage() {
                               {entry.user.firstName} {entry.user.lastName}
                             </Typography>
                           )}
+                          {entry.status === "rejected" && entry.reviewNote && (
+                            <Box sx={{ mt: 0.75, display: "flex", alignItems: "flex-start", gap: 0.5, bgcolor: "rgba(211,47,47,.06)", border: "1px solid rgba(211,47,47,.20)", borderRadius: 1, px: 1, py: 0.75 }}>
+                              <Typography variant="caption" sx={{ color: "error.main", fontWeight: 700, flexShrink: 0 }}>
+                                Reason:
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: "error.dark" }}>
+                                {entry.reviewNote}
+                              </Typography>
+                            </Box>
+                          )}
                         </Box>
                         <Stack alignItems="flex-end" spacing={0.5} sx={{ flexShrink: 0 }}>
                           <Typography className="cal-entry__hours">{entry.hours}h</Typography>
@@ -340,6 +387,36 @@ export default function CalendarPage() {
               </Stack>
             )}
           </Paper>
+
+          {/* ── Quick Actions ── */}
+          <Paper elevation={0} className="cal-card">
+            <Typography className="cal-side__date" sx={{ mb: 1.5 }}>Quick Actions</Typography>
+            <Stack spacing={1}>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<AddOutlinedIcon fontSize="small" />}
+                onClick={() => navigate("/time-entry")}
+                className="cal-log-btn"
+                sx={{ justifyContent: "flex-start" }}
+              >
+                Log Time Entry
+              </Button>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<FileDownloadOutlinedIcon fontSize="small" />}
+                onClick={handleExport}
+                disabled={visibleEntries.length === 0}
+                className="cal-log-btn"
+                sx={{ justifyContent: "flex-start" }}
+              >
+                Export Timesheet
+              </Button>
+            </Stack>
+          </Paper>
+
+          </Stack>
         </Box>
       </Box>
     </Box>

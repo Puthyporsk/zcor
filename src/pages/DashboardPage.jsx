@@ -133,8 +133,8 @@ export default function DashboardPage() {
         const monthEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
         const [week, month] = await Promise.all([
-          getTimeEntries({ from: toISODate(monDate), to: toISODate(sunDate) }),
-          getTimeEntries({ from: toISODate(monthStart), to: toISODate(monthEnd) }),
+          getTimeEntries({ userId: user._id, from: toISODate(monDate), to: toISODate(sunDate) }),
+          getTimeEntries({ userId: user._id, from: toISODate(monthStart), to: toISODate(monthEnd) }),
         ]);
 
         if (!cancelled) {
