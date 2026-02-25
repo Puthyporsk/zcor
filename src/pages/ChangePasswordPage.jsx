@@ -18,6 +18,7 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import { useAuth } from "../context/AuthContext";
+import { changePassword } from "../api/user.js";
 import ZcorPill from "../components/ZcorPill";
 import ZcorAllRightsReserved from "../components/ZcorAllRightsReserved";
 
@@ -26,7 +27,7 @@ const DARK = "#214318";
 
 export default function ChangePasswordPage() {
   const navigate = useNavigate();
-  const { user, changePassword } = useAuth(); // user info is available here per your note
+  const { user } = useAuth();
 
   const [serverError, setServerError] = React.useState("");
 

@@ -1,7 +1,6 @@
 import React from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -17,6 +16,13 @@ import { useAuth } from "../context/AuthContext";
 
 const BG = "#CFF7E3";
 const DARK = "#214318";
+
+const toUserId = (first = "", last = "") => {
+  const slug = (s) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const f = slug(first);
+  const l = slug(last);
+  return f && l ? `${f}.${l}` : f || l || "";
+};
 
 export default function SignUpPage() {
   const navigate = useNavigate();
@@ -43,26 +49,20 @@ export default function SignUpPage() {
   });
 
   const password = watch("password");
+  const firstName = watch("firstName");
+  const lastName = watch("lastName");
+  const userId = toUserId(firstName, lastName);
 
   const onSubmit = async (data) => {
     setServerError("");
     setSuccessMsg("");
 
-    const firstName = data.firstName.trim();
-    const lastName = data.lastName.trim();
-    const email = data.email.trim();
-
-    // Backend requires businessName currently
-    const businessName = firstName ? `${firstName}'s Business` : "My Business";
-    const displayName = `${firstName} ${lastName}`.trim();
-
     try {
       await registerUser({
-        businessName,
-        firstName,
-        lastName,
-        displayName,
-        email,
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        userId: toUserId(data.firstName, data.lastName),
+        email: data.email.trim(),
         password: data.password,
       });
 
@@ -160,6 +160,21 @@ export default function SignUpPage() {
                   />
                 </Box>
               </Stack>
+
+              <Box>
+                <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>
+                  User ID
+                </Typography>
+                <TextField
+                  fullWidth
+                  size="small"
+                  value={userId}
+                  disabled
+                  placeholder="Generated from your name"
+                  helperText="Auto-generated — used to sign in"
+                  slotProps={{ htmlInput: { readOnly: true } }}
+                />
+              </Box>
 
               <Box>
                 <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 0.5 }}>

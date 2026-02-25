@@ -33,6 +33,7 @@ import PasswordOutlinedIcon from '@mui/icons-material/PasswordOutlined';
 import ZcorAllRightsReserved from "../components/ZcorAllRightsReserved";
 
 import { useAuth } from "../context/AuthContext";
+import { updateMe, uploadAvatar } from "../api/user.js";
 
 // Simple deep compare for dirty state
 const deepEqual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -67,7 +68,8 @@ export default function AccountSettings() {
     const navigate = useNavigate();
     const theme = useTheme();
     const fileInputRef = useRef(null);
-    const { user, updateMe, uploadAvatar, refreshMe } = useAuth();
+    const savedAvatarSrcRef = useRef("");
+    const { user, refreshMe } = useAuth();
     
     const [loading, setLoading] = useState(true);
 
@@ -137,6 +139,7 @@ export default function AccountSettings() {
     const handleCancel = () => {
         setForm(savedSnapshot);
         setAvatarFile(null);
+        setAvatarSrc(savedAvatarSrcRef.current);
         setPhoneError("");
     };
 
@@ -150,7 +153,7 @@ export default function AccountSettings() {
 
         // immediate preview
         const previewUrl = URL.createObjectURL(file);
-        setForm((prev) => ({ ...prev, profilePhotoUrl: previewUrl }));
+        setAvatarSrc(previewUrl);
     };
 
     useEffect(() => {
@@ -173,7 +176,10 @@ export default function AccountSettings() {
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
 
-                if (!cancelled) setAvatarSrc(url);
+                if (!cancelled) {
+                    savedAvatarSrcRef.current = url;
+                    setAvatarSrc(url);
+                }
             } else {
                 if (!cancelled) setAvatarSrc(""); // fallback to initials
             }
@@ -210,7 +216,7 @@ export default function AccountSettings() {
             if (avatarChanged) {
                 const dataUrl = await fileToBase64(avatarFile);
 
-                // expects backend: PATCH /api/users/me/avatar -> { avatarUrl: "/api/users/me/avatar" }
+                // PATCH /api/users/me/avatar
                 await uploadAvatar({
                     base64: dataUrl,
                     contentType: avatarFile.type, // "image/png"
@@ -219,7 +225,7 @@ export default function AccountSettings() {
 
             // 2) Update phone ONLY if changed
             if (phoneChanged) {
-                // expects backend: PATCH /api/users/me with { phone }
+                // PATCH /api/users/me with
                 await updateMe({ phone: form.phone });
             }
 
