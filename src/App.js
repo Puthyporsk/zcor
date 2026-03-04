@@ -17,6 +17,7 @@ import DashboardPage from "./pages/DashboardPage";
 import AccountSettings from "./pages/AccountSettings";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
 import CalendarPage from "./pages/CalendarPage";
+import SchedulePage from "./pages/Schedule/SchedulePage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -44,6 +45,7 @@ export default function App() {
                   <Route path="/time-entry" element={<TimeEntryPage />} />
                   <Route path="/time-review" element={<TimeReviewPage />} />
                   <Route path="/calendar" element={<CalendarPage />} />
+                  <Route path="/schedule" element={<SchedulePage />} />
                   <Route path="/settings" element={<Outlet />}>
                     <Route index element={<AccountSettings />} />
                     <Route path="change-password" element={<ChangePasswordPage />} />

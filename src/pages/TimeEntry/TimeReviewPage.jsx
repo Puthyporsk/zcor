@@ -117,8 +117,8 @@ export default function TimeReviewPage() {
     return (
       (e.user?.firstName || "").toLowerCase().includes(q) ||
       (e.user?.lastName || "").toLowerCase().includes(q) ||
-      (e.project || "").toLowerCase().includes(q) ||
-      (e.task || "").toLowerCase().includes(q)
+      (e.project?.name || "").toLowerCase().includes(q) ||
+      (e.task?.name || "").toLowerCase().includes(q)
     );
   });
 
@@ -258,10 +258,10 @@ export default function TimeReviewPage() {
 
                     {/* Project / Task */}
                     <TableCell>
-                      <Typography variant="body2">{entry.project}</Typography>
+                      <Typography variant="body2">{entry.project?.name || "—"}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">{entry.task}</Typography>
+                      <Typography variant="body2">{entry.task?.name || "—"}</Typography>
                     </TableCell>
 
                     {/* Date */}
@@ -375,7 +375,7 @@ export default function TimeReviewPage() {
               borderRadius={1}
             >
               <Typography variant="body2" fontWeight={600}>
-                {reviewEntry.project} — {reviewEntry.task}
+                {reviewEntry.project?.name || "—"} — {reviewEntry.task?.name || "—"}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {formatDate(reviewEntry.date)} · {reviewEntry.hours}h
@@ -437,7 +437,7 @@ export default function TimeReviewPage() {
               borderRadius={1}
             >
               <Typography variant="body2" fontWeight={600}>
-                {reviewEntry.project} — {reviewEntry.task}
+                {reviewEntry.project?.name || "—"} — {reviewEntry.task?.name || "—"}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {formatDate(reviewEntry.date)} · {reviewEntry.hours}h

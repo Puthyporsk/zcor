@@ -279,7 +279,7 @@ export default function CalendarPage() {
                               <span
                                 key={j}
                                 className={`cal-dot cal-dot--${e.status}`}
-                                title={`${e.project} — ${e.hours}h`}
+                                title={`${e.project?.name} — ${e.hours}h`}
                               />
                             ))}
                             {dayEntries.length > 3 && (
@@ -348,8 +348,8 @@ export default function CalendarPage() {
                     <Paper key={entry.id} elevation={0} className="cal-entry">
                       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
                         <Box sx={{ minWidth: 0 }}>
-                          <Typography className="cal-entry__project">{entry.project}</Typography>
-                          <Typography className="cal-entry__task">• {entry.task}</Typography>
+                          <Typography className="cal-entry__project">{entry.project?.name}</Typography>
+                          <Typography className="cal-entry__task">• {entry.task?.name}</Typography>
                           {entry.description && (
                             <Typography className="cal-entry__desc">{entry.description}</Typography>
                           )}

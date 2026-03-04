@@ -26,6 +26,8 @@ import ViewWeekOutlinedIcon from "@mui/icons-material/ViewWeekOutlined";
 
 import { useAuth } from "../../context/AuthContext";
 import * as teApi from "../../api/timeEntries";
+import * as tasksApi from "../../api/tasks";
+import * as projectsApi from "../../api/projects";
 import "../../styles/timeEntry.css";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -56,8 +58,8 @@ const localToday = () => {
 // Map an API entry → frontend display shape
 const fromApi = (e) => ({
   id:      e.id,
-  project: e.project,
-  task:    e.task,
+  project: e.project ? { id: e.project.id, name: e.project.name } : null,
+  task:    e.task    ? { id: e.task.id,    name: e.task.name    } : null,
   desc:    e.description || "",
   date:    e.date ? e.date.slice(0, 10) : "",
   hours:   String(e.hours),
@@ -67,13 +69,13 @@ const fromApi = (e) => ({
 });
 
 // Map form fields → API payload
-const toApiPayload = ({ project, task, desc, date, hours, type }) => ({
-  project,
-  task,
+const toApiPayload = ({ projectId, taskId, desc, date, hours, type }) => ({
+  projectId,
+  taskId,
   description: desc || undefined,
   date,
   hours:  parseFloat(hours),
-  type:   type.toLowerCase(),   // "Billable" → "billable"
+  type:   type.toLowerCase(),
 });
 
 // Monday of the current week at midnight
@@ -115,23 +117,35 @@ export default function TimeEntryPage() {
   const formRef = React.useRef(null);
 
   // ── data state ──────────────────────────────────────────────────────────
-  const [entries,  setEntries]  = React.useState([]);
-  const [loading,  setLoading]  = React.useState(true);
+  const [entries,   setEntries]   = React.useState([]);
+  const [tasks,     setTasks]     = React.useState([]);
+  const [projects,  setProjects]  = React.useState([]);
+  const [loading,   setLoading]   = React.useState(true);
   const [saving,   setSaving]   = React.useState(false);
   const [snack,    setSnack]    = React.useState({ open: false, severity: "success", message: "" });
 
   // ── form state ──────────────────────────────────────────────────────────
   const [editingId,   setEditingId]   = React.useState(null);
   const [filterDate,  setFilterDate]  = React.useState("");
-  const [project,     setProject]     = React.useState("");
-  const [task,        setTask]        = React.useState("");
+  const [projectId,   setProjectId]   = React.useState("");
+  const [taskId,      setTaskId]      = React.useState("");
   const [desc,        setDesc]        = React.useState("");
   const [date,        setDate]        = React.useState(localToday());
   const [hours,       setHours]       = React.useState("");
   const [type,        setType]        = React.useState("Billable");
   const [errors,      setErrors]      = React.useState({});
 
-  // ── load entries ────────────────────────────────────────────────────────
+  // inline add-task state
+  const [addingTask,     setAddingTask]     = React.useState(false);
+  const [newTaskName,    setNewTaskName]    = React.useState("");
+  const [taskSaving,     setTaskSaving]     = React.useState(false);
+
+  // inline add-project state
+  const [addingProject,    setAddingProject]    = React.useState(false);
+  const [newProjectName,   setNewProjectName]   = React.useState("");
+  const [projectSaving,    setProjectSaving]    = React.useState(false);
+
+  // ── load entries + tasks ────────────────────────────────────────────────
   React.useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -139,8 +153,16 @@ export default function TimeEntryPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const data = await teApi.getTimeEntries({ userId: user._id });
-        if (!cancelled) setEntries(data.map(fromApi));
+        const [entriesData, tasksData, projectsData] = await Promise.all([
+          teApi.getTimeEntries({ userId: user._id }),
+          tasksApi.getTasks(),
+          projectsApi.getProjects(),
+        ]);
+        if (!cancelled) {
+          setEntries(entriesData.map(fromApi));
+          setTasks(tasksData);
+          setProjects(projectsData);
+        }
       } catch (err) {
         if (!cancelled) setSnack({ open: true, severity: "error", message: err.message || "Failed to load entries." });
       } finally {
@@ -164,7 +186,8 @@ export default function TimeEntryPage() {
   const billableHours     = weeklyEntries.filter((e) => e.type === "Billable").reduce((s, e) => s + parseFloat(e.hours || 0), 0);
   const nonBillableHours  = weeklyEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0) - billableHours;
   const hoursByProject    = weeklyEntries.reduce((acc, e) => {
-    acc[e.project] = (acc[e.project] || 0) + parseFloat(e.hours || 0);
+    const name = e.project?.name || "Unknown";
+    acc[name] = (acc[name] || 0) + parseFloat(e.hours || 0);
     return acc;
   }, {});
 
@@ -178,15 +201,17 @@ export default function TimeEntryPage() {
 
   // ── form helpers ────────────────────────────────────────────────────────
   const resetForm = () => {
-    setProject(""); setTask(""); setDesc("");
+    setProjectId(""); setTaskId(""); setDesc("");
     setDate(localToday()); setHours(""); setType("Billable");
     setErrors({}); setEditingId(null);
+    setAddingTask(false); setNewTaskName("");
+    setAddingProject(false); setNewProjectName("");
   };
 
   const validate = () => {
     const errs = {};
-    if (!project) errs.project = "Required";
-    if (!task)    errs.task    = "Required";
+    if (!projectId) errs.project = "Required";
+    if (!taskId)    errs.task    = "Required";
     if (!date)    errs.date    = "Required";
     if (!hours || isNaN(parseFloat(hours)) || parseFloat(hours) <= 0)
       errs.hours = "Enter a valid number";
@@ -201,7 +226,7 @@ export default function TimeEntryPage() {
 
     setSaving(true);
     try {
-      const payload = toApiPayload({ project, task, desc, date, hours, type });
+      const payload = toApiPayload({ projectId, taskId, desc, date, hours, type });
       if (editingId !== null) {
         const updated = await teApi.updateTimeEntry(editingId, payload);
         setEntries((prev) => prev.map((entry) => entry.id === editingId ? fromApi(updated) : entry));
@@ -221,8 +246,8 @@ export default function TimeEntryPage() {
 
   const handleEdit = (entry) => {
     setEditingId(entry.id);
-    setProject(entry.project);
-    setTask(entry.task);
+    setProjectId(entry.project?.id || "");
+    setTaskId(entry.task?.id || "");
     setDesc(entry.desc);
     setDate(entry.date);
     setHours(entry.hours);
@@ -238,6 +263,40 @@ export default function TimeEntryPage() {
       if (editingId === id) resetForm();
     } catch (err) {
       setSnack({ open: true, severity: "error", message: err.message || "Failed to delete entry." });
+    }
+  };
+
+  const handleAddNewProject = async () => {
+    const name = newProjectName.trim();
+    if (!name) return;
+    setProjectSaving(true);
+    try {
+      const created = await projectsApi.createProject({ name });
+      setProjects((prev) => [...prev, created]);
+      setProjectId(created.id);
+      setAddingProject(false);
+      setNewProjectName("");
+    } catch (err) {
+      setSnack({ open: true, severity: "error", message: err.message || "Failed to create project." });
+    } finally {
+      setProjectSaving(false);
+    }
+  };
+
+  const handleAddNewTask = async () => {
+    const name = newTaskName.trim();
+    if (!name) return;
+    setTaskSaving(true);
+    try {
+      const created = await tasksApi.createTask({ name });
+      setTasks((prev) => [...prev, created]);
+      setTaskId(created.id);
+      setAddingTask(false);
+      setNewTaskName("");
+    } catch (err) {
+      setSnack({ open: true, severity: "error", message: err.message || "Failed to create task." });
+    } finally {
+      setTaskSaving(false);
     }
   };
 
@@ -283,34 +342,152 @@ export default function TimeEntryPage() {
                     <Typography className="te-label" variant="caption">
                       Project <span className="te-required">*</span>
                     </Typography>
-                    <TextField
-                      select fullWidth size="small" value={project}
-                      onChange={(e) => { setProject(e.target.value); setErrors((p) => ({ ...p, project: undefined })); }}
-                      error={!!errors.project} helperText={errors.project}
-                      slotProps={{ select: { displayEmpty: true, renderValue: (s) => s || "Select project" } }}
-                    >
-                      <MenuItem disabled value="">Select project</MenuItem>
-                      <MenuItem value="ZCOR Platform">ZCOR Platform</MenuItem>
-                      <MenuItem value="Client Portal">Client Portal</MenuItem>
-                      <MenuItem value="Internal Tools">Internal Tools</MenuItem>
-                    </TextField>
+                    {addingProject ? (
+                      <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                        <TextField
+                          size="small" fullWidth
+                          placeholder="New project name…"
+                          value={newProjectName}
+                          onChange={(e) => setNewProjectName(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleAddNewProject()}
+                          autoFocus
+                        />
+                        <Button
+                          variant="contained" size="small"
+                          onClick={handleAddNewProject}
+                          disabled={projectSaving || !newProjectName.trim()}
+                          sx={{
+                            flexShrink: 0,
+                            height: "40px",
+                            borderRadius: "8px",
+                            px: 2,
+                            bgcolor: "#1a3a2e",
+                            textTransform: "none",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            "&:hover": { bgcolor: "#0e2e25" },
+                          }}
+                        >
+                          {projectSaving ? "…" : "Add"}
+                        </Button>
+                        <Button
+                          variant="outlined" size="small"
+                          onClick={() => { setAddingProject(false); setNewProjectName(""); }}
+                          sx={{
+                            flexShrink: 0,
+                            height: "40px",
+                            minWidth: "40px",
+                            borderRadius: "8px",
+                            px: 0,
+                            borderColor: "rgba(14,46,37,0.2)",
+                            color: "#0e2e25",
+                            textTransform: "none",
+                            fontWeight: 700,
+                            fontSize: 15,
+                          }}
+                        >
+                          ✕
+                        </Button>
+                      </Box>
+                    ) : (
+                      <TextField
+                        select fullWidth size="small" value={projectId}
+                        onChange={(e) => {
+                          if (e.target.value === "__add__") {
+                            setAddingProject(true);
+                          } else {
+                            setProjectId(e.target.value);
+                            setErrors((p) => ({ ...p, project: undefined }));
+                          }
+                        }}
+                        error={!!errors.project} helperText={errors.project}
+                        slotProps={{ select: { displayEmpty: true, renderValue: (v) => projects.find((p) => p.id === v)?.name || "Select project" } }}
+                      >
+                        <MenuItem disabled value="">Select project</MenuItem>
+                        {projects.map((p) => (
+                          <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
+                        ))}
+                        <MenuItem value="__add__" sx={{ color: "primary.main", fontWeight: 700 }}>
+                          + Add new project…
+                        </MenuItem>
+                      </TextField>
+                    )}
                   </div>
 
                   <div>
                     <Typography className="te-label" variant="caption">
                       Task <span className="te-required">*</span>
                     </Typography>
-                    <TextField
-                      select fullWidth size="small" value={task}
-                      onChange={(e) => { setTask(e.target.value); setErrors((p) => ({ ...p, task: undefined })); }}
-                      error={!!errors.task} helperText={errors.task}
-                      slotProps={{ select: { displayEmpty: true, renderValue: (s) => s || "Select task" } }}
-                    >
-                      <MenuItem disabled value="">Select task</MenuItem>
-                      <MenuItem value="Frontend Development">Frontend Development</MenuItem>
-                      <MenuItem value="Bug Fixes">Bug Fixes</MenuItem>
-                      <MenuItem value="Meetings">Meetings</MenuItem>
-                    </TextField>
+                    {addingTask ? (
+                      <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                        <TextField
+                          size="small" fullWidth
+                          placeholder="New task name…"
+                          value={newTaskName}
+                          onChange={(e) => setNewTaskName(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleAddNewTask()}
+                          autoFocus
+                        />
+                        <Button
+                          variant="contained" size="small"
+                          onClick={handleAddNewTask}
+                          disabled={taskSaving || !newTaskName.trim()}
+                          sx={{
+                            flexShrink: 0,
+                            height: "40px",
+                            borderRadius: "8px",
+                            px: 2,
+                            bgcolor: "#1a3a2e",
+                            textTransform: "none",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            "&:hover": { bgcolor: "#0e2e25" },
+                          }}
+                        >
+                          {taskSaving ? "…" : "Add"}
+                        </Button>
+                        <Button
+                          variant="outlined" size="small"
+                          onClick={() => { setAddingTask(false); setNewTaskName(""); }}
+                          sx={{
+                            flexShrink: 0,
+                            height: "40px",
+                            minWidth: "40px",
+                            borderRadius: "8px",
+                            px: 0,
+                            borderColor: "rgba(14,46,37,0.2)",
+                            color: "#0e2e25",
+                            textTransform: "none",
+                            fontWeight: 700,
+                            fontSize: 15,
+                          }}
+                        >
+                          ✕
+                        </Button>
+                      </Box>
+                    ) : (
+                      <TextField
+                        select fullWidth size="small" value={taskId}
+                        onChange={(e) => {
+                          if (e.target.value === "__add__") {
+                            setAddingTask(true);
+                          } else {
+                            setTaskId(e.target.value);
+                            setErrors((p) => ({ ...p, task: undefined }));
+                          }
+                        }}
+                        error={!!errors.task} helperText={errors.task}
+                        slotProps={{ select: { displayEmpty: true, renderValue: (v) => tasks.find((t) => t.id === v)?.name || "Select task" } }}
+                      >
+                        <MenuItem disabled value="">Select task</MenuItem>
+                        {tasks.map((t) => (
+                          <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+                        ))}
+                        <MenuItem value="__add__" sx={{ color: "primary.main", fontWeight: 700 }}>
+                          + Add new task…
+                        </MenuItem>
+                      </TextField>
+                    )}
                   </div>
 
                   <div className="te-formGrid__full">
@@ -409,8 +586,8 @@ export default function TimeEntryPage() {
                     <Paper key={entry.id} elevation={0} className="te-entryRow">
                       <div className="te-entryRow__left">
                         <div className="te-entryRow__topline">
-                          <Typography className="te-entryProject" variant="body1">{entry.project}</Typography>
-                          <Typography className="te-entryTask" variant="caption">• {entry.task}</Typography>
+                          <Typography className="te-entryProject" variant="body1">{entry.project?.name || ""}</Typography>
+                          <Typography className="te-entryTask" variant="caption">• {entry.task?.name || ""}</Typography>
                           <Chip
                             size="small" label={entry.status}
                             color={STATUS_COLOR[entry.status] ?? "default"}

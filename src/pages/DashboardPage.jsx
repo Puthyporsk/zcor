@@ -183,7 +183,7 @@ export default function DashboardPage() {
   // Project breakdown pie: hours per project this month
   const projectPie = React.useMemo(() => {
     const map = {};
-    monthEntries.forEach((e) => { map[e.project] = (map[e.project] || 0) + parseFloat(e.hours || 0); });
+    monthEntries.forEach((e) => { map[e.project?.name] = (map[e.project?.name] || 0) + parseFloat(e.hours || 0); });
     return Object.entries(map)
       .map(([name, value]) => ({ name, value: +value.toFixed(1) }))
       .sort((a, b) => b.value - a.value)
@@ -374,9 +374,9 @@ export default function DashboardPage() {
 
                             <Box className="dash-row__text">
                               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                <Typography className="dash-row__title">{entry.project}</Typography>
+                                <Typography className="dash-row__title">{entry.project?.name || "—"}</Typography>
                                 <Typography className="dash-dot" aria-hidden="true">•</Typography>
-                                <Typography className="dash-row__subtitle">{entry.task}</Typography>
+                                <Typography className="dash-row__subtitle">{entry.task?.name || "—"}</Typography>
                               </Stack>
                               {entry.description && (
                                 <Typography className="dash-row__desc">{entry.description}</Typography>
