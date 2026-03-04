@@ -1,5 +1,7 @@
 import { apiFetch } from "./api.js";
 
+export const getUsers = () => apiFetch("/api/user");
+
 export const updateMe = ({ phone } = {}) =>
   apiFetch("/api/user/me", { method: "PATCH", body: { phone } });
 
