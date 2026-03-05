@@ -83,9 +83,19 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const registerInvited = React.useCallback(
+    async ({ token, firstName, lastName, userId, password } = {}) => {
+      return apiFetch("/api/auth/register-invited", {
+        method: "POST",
+        body: { token, firstName, lastName, userId, password },
+      });
+    },
+    [],
+  );
+
   const value = React.useMemo(
-    () => ({ user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, refreshMe }),
-    [user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, refreshMe],
+    () => ({ user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, refreshMe, registerInvited }),
+    [user, isLoggedIn, loading, login, register, logout, forgotPassword, resetPassword, refreshMe, registerInvited],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
