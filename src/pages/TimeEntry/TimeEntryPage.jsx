@@ -1,5 +1,4 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -22,12 +21,13 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
-import ViewWeekOutlinedIcon from "@mui/icons-material/ViewWeekOutlined";
+import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 
 import { useAuth } from "../../context/AuthContext";
 import * as teApi from "../../api/timeEntries";
 import * as tasksApi from "../../api/tasks";
 import * as projectsApi from "../../api/projects";
+import { getLeaveRequests } from "../../api/leave";
 import "../../styles/timeEntry.css";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -112,14 +112,14 @@ function TimesheetTopBar({ weeklyTotal }) {
 // ─── page ────────────────────────────────────────────────────────────────────
 
 export default function TimeEntryPage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const formRef = React.useRef(null);
 
   // ── data state ──────────────────────────────────────────────────────────
-  const [entries,   setEntries]   = React.useState([]);
-  const [tasks,     setTasks]     = React.useState([]);
-  const [projects,  setProjects]  = React.useState([]);
+  const [entries,       setEntries]       = React.useState([]);
+  const [tasks,         setTasks]         = React.useState([]);
+  const [projects,      setProjects]      = React.useState([]);
+  const [approvedLeave, setApprovedLeave] = React.useState([]);
   const [loading,   setLoading]   = React.useState(true);
   const [saving,   setSaving]   = React.useState(false);
   const [snack,    setSnack]    = React.useState({ open: false, severity: "success", message: "" });
@@ -153,15 +153,17 @@ export default function TimeEntryPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [entriesData, tasksData, projectsData] = await Promise.all([
+        const [entriesData, tasksData, projectsData, leaveData] = await Promise.all([
           teApi.getTimeEntries({ userId: user._id }),
           tasksApi.getTasks(),
           projectsApi.getProjects(),
+          getLeaveRequests({ userId: user._id, status: "approved", year: String(new Date().getFullYear()) }),
         ]);
         if (!cancelled) {
           setEntries(entriesData.map(fromApi));
           setTasks(tasksData);
           setProjects(projectsData);
+          setApprovedLeave(leaveData);
         }
       } catch (err) {
         if (!cancelled) setSnack({ open: true, severity: "error", message: err.message || "Failed to load entries." });
@@ -198,6 +200,15 @@ export default function TimeEntryPage() {
   const displayedEntries = filterDate
     ? entries.filter((e) => e.date === filterDate)
     : entries;
+
+  const leaveConflict = React.useMemo(() => {
+    if (!date) return null;
+    return approvedLeave.find((lr) => {
+      const start = lr.startDate?.slice(0, 10);
+      const end   = lr.endDate?.slice(0, 10);
+      return start && end && start <= date && date <= end;
+    }) || null;
+  }, [date, approvedLeave]);
 
   // ── form helpers ────────────────────────────────────────────────────────
   const resetForm = () => {
@@ -311,6 +322,30 @@ export default function TimeEntryPage() {
     } catch (err) {
       setSnack({ open: true, severity: "error", message: err.message || "Failed to submit entries." });
     }
+  };
+
+  // ── export ──────────────────────────────────────────────────────────────
+  const handleExport = () => {
+    const headers = ["Project", "Task", "Description", "Date", "Hours", "Type", "Status"];
+    const rows = entries.map((e) => [
+      e.project?.name || "",
+      e.task?.name    || "",
+      e.desc          || "",
+      e.date          || "",
+      e.hours,
+      e.type,
+      e.status,
+    ]);
+    const csv = [headers, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `timesheet-${new Date().toISOString().slice(0, 7)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // ── render ───────────────────────────────────────────────────────────────
@@ -534,11 +569,19 @@ export default function TimeEntryPage() {
                   </div>
                 </div>
 
+                {leaveConflict && (
+                  <Alert severity={leaveConflict.type === "vacation" ? "error" : "warning"} sx={{ mt: 2, borderRadius: 2 }}>
+                    {leaveConflict.type === "vacation"
+                      ? "You have approved vacation leave on this day and cannot log time entries."
+                      : `You have approved ${leaveConflict.type === "sick" ? "sick leave" : leaveConflict.type} on this day.`}
+                  </Alert>
+                )}
+
                 <Stack direction="row" spacing={1.5} mt={2}>
                   <Button
                     type="submit" variant="contained" fullWidth
                     className="te-primaryBtn" startIcon={<AddIcon />}
-                    sx={{ mt: "0 !important" }} disabled={saving}
+                    sx={{ mt: "0 !important" }} disabled={saving || leaveConflict?.type === "vacation"}
                   >
                     {saving ? "Saving…" : editingId !== null ? "Update Entry" : "Add Time Entry"}
                   </Button>
@@ -712,10 +755,11 @@ export default function TimeEntryPage() {
                   Submit for Review
                 </Button>
                 <Button
-                  variant="outlined" fullWidth startIcon={<ViewWeekOutlinedIcon />}
-                  className="te-actionBtn" onClick={() => navigate("/calendar")}
+                  variant="outlined" fullWidth startIcon={<FileDownloadOutlinedIcon />}
+                  className="te-actionBtn" onClick={handleExport}
+                  disabled={entries.length === 0}
                 >
-                  View Full Calendar
+                  Export Timesheet
                 </Button>
 
               </div>

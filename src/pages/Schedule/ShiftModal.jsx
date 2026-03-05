@@ -47,6 +47,7 @@ export default function ShiftModal({
   shift,
   employees,
   tasks,
+  approvedLeave = [],
   currentUser,
   isPrivileged,
   onClose,
@@ -74,6 +75,19 @@ export default function ShiftModal({
   const [saving,        setSaving]        = React.useState(false);
   const [error,         setError]         = React.useState("");
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+
+  // ── leave conflict detection ──────────────────────────────────────────────
+  const leaveConflict = React.useMemo(() => {
+    if (!date || !selectedEmpId) return null;
+    const ds = date.toISOString().slice(0, 10);
+    return approvedLeave.find((lr) => {
+      const empId = lr.employee?._id || lr.employee?.id || lr.employee;
+      if (String(empId) !== String(selectedEmpId)) return false;
+      const start = lr.startDate?.slice(0, 10);
+      const end   = lr.endDate?.slice(0, 10);
+      return start && end && start <= ds && ds <= end;
+    }) || null;
+  }, [date, selectedEmpId, approvedLeave]);
 
   // Seed form when modal opens
   React.useEffect(() => {
@@ -468,6 +482,20 @@ export default function ShiftModal({
             </FormControl>
           )}
         </Box>
+
+        {/* Leave conflict warning */}
+        {leaveConflict && (
+          <Box sx={{ bgcolor: "#fff8e1", border: "1px solid #ffb300", borderRadius: "6px", p: 1.25 }}>
+            <Typography sx={{ fontSize: 12, fontWeight: 700, color: "#e65100" }}>
+              Leave conflict
+            </Typography>
+            <Typography sx={{ fontSize: 11.5, color: "#bf360c", mt: 0.25 }}>
+              This employee has approved{" "}
+              {leaveConflict.type === "sick" ? "sick leave" : leaveConflict.type}{" "}
+              on this day ({leaveConflict.totalHours}h). You can still schedule the shift.
+            </Typography>
+          </Box>
+        )}
 
         {/* Error */}
         {error && (

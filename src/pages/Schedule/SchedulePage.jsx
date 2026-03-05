@@ -13,12 +13,16 @@ import AccessTimeIcon             from "@mui/icons-material/AccessTime";
 import WorkOutlineIcon            from "@mui/icons-material/WorkOutline";
 import ChevronLeftIcon            from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon           from "@mui/icons-material/ChevronRight";
+import BeachAccessOutlinedIcon    from "@mui/icons-material/BeachAccessOutlined";
+import SickOutlinedIcon           from "@mui/icons-material/SickOutlined";
+import PersonOutlineOutlinedIcon  from "@mui/icons-material/PersonOutlineOutlined";
 
-import { useAuth }       from "../../context/AuthContext";
-import { getShifts }     from "../../api/shifts";
-import { getTasks }      from "../../api/tasks";
-import { getUsers }      from "../../api/user";
-import ShiftModal        from "./ShiftModal";
+import { useAuth }           from "../../context/AuthContext";
+import { getShifts }         from "../../api/shifts";
+import { getTasks }          from "../../api/tasks";
+import { getUsers }          from "../../api/user";
+import { getLeaveRequests }  from "../../api/leave";
+import ShiftModal            from "./ShiftModal";
 import ZcorAllRightsReserved from "../../components/ZcorAllRightsReserved";
 import "../../styles/schedule.css";
 
@@ -57,6 +61,42 @@ const shiftMinutes = (startTime, endTime) => {
 };
 
 const isSameId = (a, b) => String(a) === String(b);
+
+// ─── Leave helpers ────────────────────────────────────────────────────────────
+
+const LEAVE_STYLE = {
+  vacation: { bg: "#fff8e1", border: "#ffb300", text: "#e65100", icon: <BeachAccessOutlinedIcon sx={{ fontSize: 11, flexShrink: 0 }} /> },
+  sick:     { bg: "#f3e5f5", border: "#9c27b0", text: "#6a1b9a", icon: <SickOutlinedIcon sx={{ fontSize: 11, flexShrink: 0 }} /> },
+  personal: { bg: "#e8f5e9", border: "#43a047", text: "#1b5e20", icon: <PersonOutlineOutlinedIcon sx={{ fontSize: 11, flexShrink: 0 }} /> },
+};
+const LEAVE_LABEL = { vacation: "Vacation", sick: "Sick Leave", personal: "Personal" };
+
+// ─── LeaveCard ────────────────────────────────────────────────────────────────
+
+function LeaveCard({ leave }) {
+  const emp    = leave.employee || {};
+  const name   = [emp.firstName, emp.lastName].filter(Boolean).join(" ") || "Unknown";
+  const style  = LEAVE_STYLE[leave.type] || LEAVE_STYLE.personal;
+
+  return (
+    <Box sx={{
+      bgcolor: style.bg,
+      border: `1px solid ${style.border}`,
+      borderRadius: "6px",
+      p: "7px 9px",
+    }}>
+      <Typography sx={{ fontSize: 12, fontWeight: 800, color: style.text, mb: 0.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {name}
+      </Typography>
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ color: style.text, opacity: 0.85 }}>
+        {style.icon}
+        <Typography sx={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {LEAVE_LABEL[leave.type]}
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
 
 // ─── ShiftCard ────────────────────────────────────────────────────────────────
 
@@ -106,8 +146,10 @@ function ShiftCard({ shift, clickable, onCardClick }) {
 
 // ─── DayColumn ────────────────────────────────────────────────────────────────
 
-function DayColumn({ date, dayName, dayShifts, canCreate, canEditShift, onAddClick, onCardClick }) {
-  const count = dayShifts.length;
+function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canEditShift, onAddClick, onCardClick }) {
+  const shiftCount = dayShifts.length;
+  const leaveCount = dayLeave.length;
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", borderRight: "1px solid rgba(16,24,40,.07)", "&:last-child": { borderRight: "none" }, minHeight: 340 }}>
       {/* Header */}
@@ -141,7 +183,16 @@ function DayColumn({ date, dayName, dayShifts, canCreate, canEditShift, onAddCli
           </Button>
         )}
 
-        {count === 0 ? (
+        {/* Leave cards */}
+        {leaveCount > 0 && (
+          <Stack spacing={0.75}>
+            {dayLeave.map((lr) => (
+              <LeaveCard key={lr.id} leave={lr} />
+            ))}
+          </Stack>
+        )}
+
+        {shiftCount === 0 && leaveCount === 0 ? (
           <Typography sx={{ textAlign: "center", fontSize: 12, fontWeight: 600, color: "rgba(14,46,37,.38)", py: 2 }}>
             No shifts
           </Typography>
@@ -156,9 +207,11 @@ function DayColumn({ date, dayName, dayShifts, canCreate, canEditShift, onAddCli
 
       {/* Footer */}
       <Box sx={{ px: 1, py: 1, textAlign: "center", borderTop: "1px solid rgba(16,24,40,.07)", minHeight: 30 }}>
-        {count > 0 && (
+        {(shiftCount > 0 || leaveCount > 0) && (
           <Typography sx={{ fontSize: 11.5, fontWeight: 700, color: DARK, opacity: 0.75 }}>
-            {count} {count === 1 ? "shift" : "shifts"}
+            {shiftCount > 0 && `${shiftCount} ${shiftCount === 1 ? "shift" : "shifts"}`}
+            {shiftCount > 0 && leaveCount > 0 && " · "}
+            {leaveCount > 0 && `${leaveCount} on leave`}
           </Typography>
         )}
       </Box>
@@ -196,6 +249,7 @@ export default function SchedulePage() {
   const [showWeekends,     setShowWeekends]     = React.useState(false);
   const [filterEmployeeId, setFilterEmployeeId] = React.useState("");
   const [filterTaskId,     setFilterTaskId]     = React.useState("");
+  const [approvedLeave,    setApprovedLeave]    = React.useState([]);
   const [modal, setModal] = React.useState({ open: false, date: null, shift: null });
 
   const weekEnd    = React.useMemo(() => addDays(weekStart, 6), [weekStart]);
@@ -208,15 +262,17 @@ export default function SchedulePage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [shiftsData, usersData, tasksData] = await Promise.all([
+        const [shiftsData, usersData, tasksData, leaveData] = await Promise.all([
           getShifts({ from: toDateStr(weekStart), to: toDateStr(weekEnd) }),
           getUsers(),
           getTasks(),
+          getLeaveRequests({ status: "approved", year: weekStart.getFullYear() }),
         ]);
         if (!cancelled) {
           setShifts(shiftsData);
           setEmployees(usersData);
           setTasks(tasksData);
+          setApprovedLeave(leaveData);
         }
       } catch (_) {}
       finally { if (!cancelled) setLoading(false); }
@@ -249,6 +305,15 @@ export default function SchedulePage() {
   const shiftsForDay = (date) => {
     const ds = toDateStr(date);
     return filteredShifts.filter((sh) => sh.date?.slice(0, 10) === ds);
+  };
+
+  const leaveForDay = (date) => {
+    const ds = toDateStr(date);
+    return approvedLeave.filter((lr) => {
+      const start = lr.startDate?.slice(0, 10);
+      const end   = lr.endDate?.slice(0, 10);
+      return start && end && start <= ds && ds <= end;
+    });
   };
 
   const canEditShift = (shift) => {
@@ -408,6 +473,7 @@ export default function SchedulePage() {
                   date={date}
                   dayName={DAY_NAMES[i]}
                   dayShifts={shiftsForDay(date)}
+                  dayLeave={leaveForDay(date)}
                   canCreate={isPrivileged}
                   canEditShift={canEditShift}
                   onAddClick={openAdd}
@@ -446,6 +512,7 @@ export default function SchedulePage() {
         shift={modal.shift}
         employees={employees}
         tasks={tasks}
+        approvedLeave={approvedLeave}
         currentUser={user}
         isPrivileged={isPrivileged}
         onClose={closeModal}

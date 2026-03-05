@@ -1,0 +1,253 @@
+/* Leave Page */
+
+.lv-root {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 700px at 20% 10%, rgba(255,255,255,0.55), rgba(255,255,255,0) 60%),
+    radial-gradient(900px 600px at 85% 12%, rgba(255,220,210,0.35), rgba(255,255,255,0) 60%),
+    #CFF8E6;
+}
+
+/* Topbar */
+.lv-topbar {
+  width: 100%;
+  background: #163A2E;
+  color: #fff;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+}
+
+.lv-topbar__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.lv-topbar__title {
+  font-weight: 900 !important;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
+.lv-topbar__sub {
+  opacity: 0.78;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* Main container */
+.lv-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 16px 90px;
+}
+
+/* Balance cards row */
+.lv-balances {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.lv-balCard {
+  border-radius: 18px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.94) !important;
+  box-shadow: 0 18px 55px rgba(15,27,16,0.10) !important;
+  padding: 20px 20px !important;
+}
+
+.lv-balCard__type {
+  font-weight: 900 !important;
+  font-size: 13px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(15,27,16,0.55) !important;
+  margin-bottom: 8px !important;
+}
+
+.lv-balCard__remaining {
+  font-weight: 900 !important;
+  font-size: 28px !important;
+  line-height: 1.1;
+}
+
+.lv-balCard__sub {
+  font-size: 12px !important;
+  color: rgba(15,27,16,0.55) !important;
+  margin-top: 4px !important;
+}
+
+.lv-balCard__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(15,27,16,0.08);
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.lv-balCard__barFill {
+  height: 100%;
+  border-radius: 999px;
+  background: #163A2E;
+  transition: width 0.4s ease;
+}
+
+.lv-balCard__barFill--warn {
+  background: #e65100;
+}
+
+.lv-balCard__barFill--danger {
+  background: #c62828;
+}
+
+/* Grid layout */
+.lv-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Cards */
+.lv-card {
+  border-radius: 18px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.94) !important;
+  box-shadow: 0 18px 55px rgba(15,27,16,0.10) !important;
+  padding: 22px !important;
+}
+
+.lv-cardTitle {
+  font-weight: 900 !important;
+  margin-bottom: 4px !important;
+}
+
+.lv-cardSub {
+  color: rgba(15,27,16,0.60) !important;
+  font-size: 13px !important;
+  margin-bottom: 18px !important;
+}
+
+/* Form grid */
+.lv-formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+.lv-formGrid__full {
+  grid-column: 1 / -1;
+}
+
+.lv-label {
+  display: inline-block;
+  font-weight: 900 !important;
+  margin-bottom: 6px !important;
+}
+
+.lv-required {
+  color: #c62828;
+  font-weight: 900;
+}
+
+.lv-submitBtn {
+  margin-top: 16px !important;
+  border-radius: 999px !important;
+  text-transform: none !important;
+  font-weight: 900 !important;
+  padding: 12px 14px !important;
+  background: #163A2E !important;
+  box-shadow: 0 12px 26px rgba(15,27,16,0.18) !important;
+}
+
+/* Request list */
+.lv-requestRow {
+  border-radius: 14px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.88) !important;
+  padding: 14px !important;
+}
+
+.lv-requestRow__type {
+  font-weight: 900 !important;
+  font-size: 14px !important;
+}
+
+.lv-requestRow__dates {
+  color: rgba(15,27,16,0.60) !important;
+  font-size: 13px !important;
+}
+
+.lv-requestRow__hours {
+  font-weight: 900 !important;
+}
+
+.lv-requestRow__reason {
+  color: rgba(15,27,16,0.65) !important;
+  font-size: 13px !important;
+  margin-top: 4px !important;
+}
+
+.lv-requestRow__note {
+  margin-top: 6px !important;
+  padding: 6px 10px !important;
+  border-radius: 8px !important;
+  background: rgba(198,40,40,0.06) !important;
+  border: 1px solid rgba(198,40,40,0.18) !important;
+}
+
+/* Team requests table area */
+.lv-teamRow {
+  border-radius: 14px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.88) !important;
+  padding: 14px !important;
+}
+
+.lv-teamRow__name {
+  font-weight: 900 !important;
+  font-size: 14px !important;
+}
+
+.lv-teamRow__meta {
+  color: rgba(15,27,16,0.60) !important;
+  font-size: 13px !important;
+}
+
+/* Allocation form */
+.lv-allocGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.lv-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: rgba(15,27,16,0.45);
+  font-size: 14px;
+}
+
+@media (max-width: 1023px) {
+  .lv-grid {
+    grid-template-columns: 1fr;
+  }
+  .lv-balances {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .lv-formGrid {
+    grid-template-columns: 1fr;
+  }
+  .lv-allocGrid {
+    grid-template-columns: 1fr;
+  }
+}
