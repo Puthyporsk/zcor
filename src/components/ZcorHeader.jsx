@@ -148,7 +148,7 @@ export default function ZcorHeader() {
             sx={{
               width: 30,
               height: 30,
-              borderRadius: 2,
+              borderRadius: "6px",
               bgcolor: "primary.main",
               color: "#fff",
               display: "grid",
@@ -228,7 +228,7 @@ export default function ZcorHeader() {
                 PaperProps={{
                   sx: {
                     mt: 1,
-                    borderRadius: 2,
+                    borderRadius: "10px",
                     minWidth: 220,
                     border: "1px solid rgba(15,27,16,.10)",
                     boxShadow: "0 18px 50px rgba(15,27,16,.15)",
@@ -288,7 +288,7 @@ export default function ZcorHeader() {
               sx={{
                 border: "1px solid rgba(15,27,16,.18)",
                 bgcolor: "rgba(255,255,255,.35)",
-                borderRadius: 2,
+                borderRadius: "8px",
               }}
             >
               <MenuIcon />

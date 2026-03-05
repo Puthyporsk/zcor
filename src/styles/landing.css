@@ -9,7 +9,7 @@
   --dark2:#183511;
 
   --border:rgba(15,27,16,.12);
-  --radius:16px;
+  --radius:10px;
   --shadow:0 12px 30px rgba(15,27,16,.10);
 }
 
@@ -168,7 +168,7 @@ a:hover{text-decoration:underline;}
   display:flex;flex-direction:column;gap:10px;
 }
 .zcor-pill{
-  border-radius:14px;padding:14px;
+  border-radius:10px;padding:14px;
   border:1px solid rgba(15,27,16,.10);
   background:rgba(255,255,255,.70);
   text-align:left;width:100%;
@@ -200,7 +200,7 @@ a:hover{text-decoration:underline;}
 
 /* PRODUCT PREVIEW (contained, clean, image fills frame) */
 .zcor-photoCard{
-  border-radius: 22px;
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgba(15,27,16,.10);
   background: color-mix(in oklab, var(--mint2) 65%, #fff 35%);
@@ -336,7 +336,7 @@ a:hover{text-decoration:underline;}
     position:absolute;
     left:12px;right:12px;top:58px;
     padding:12px;
-    border-radius:16px;
+    border-radius:10px;
     border:1px solid rgba(15,27,16,.12);
     background:rgba(255,255,255,.85);
     box-shadow:var(--shadow);
@@ -348,7 +348,7 @@ a:hover{text-decoration:underline;}
   .zcor-menu.is-open{display:flex;}
   .zcor-menu a, .zcor-menu .zcor-btn{
     padding:10px 10px;
-    border-radius:12px;
+    border-radius:8px;
   }
   .zcor-menu a:hover{background:rgba(15,27,16,.06);text-decoration:none;}
 
