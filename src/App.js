@@ -16,10 +16,10 @@ import TimeReviewPage from "./pages/TimeEntry/TimeReviewPage";
 import DashboardPage from "./pages/DashboardPage";
 import AccountSettings from "./pages/AccountSettings";
 import ChangePasswordPage from "./pages/ChangePasswordPage";
-import CalendarPage from "./pages/CalendarPage";
 import SchedulePage from "./pages/Schedule/SchedulePage";
 import EmployeesPage from "./pages/EmployeesPage";
 import InventoryPage from "./pages/InventoryPage";
+import LeavePage from "./pages/Leave/LeavePage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -46,10 +46,10 @@ export default function App() {
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/time-entry" element={<TimeEntryPage />} />
                   <Route path="/time-review" element={<TimeReviewPage />} />
-                  <Route path="/calendar" element={<CalendarPage />} />
                   <Route path="/schedule" element={<SchedulePage />} />
                   <Route path="/employees" element={<EmployeesPage />} />
                   <Route path="/inventory" element={<InventoryPage />} />
+                  <Route path="/leave" element={<LeavePage />} />
                   <Route path="/settings" element={<Outlet />}>
                     <Route index element={<AccountSettings />} />
                     <Route path="change-password" element={<ChangePasswordPage />} />
