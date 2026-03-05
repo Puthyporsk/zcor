@@ -21,7 +21,6 @@ import HourglassEmptyOutlinedIcon from "@mui/icons-material/HourglassEmptyOutlin
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
 import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
-import BarChartOutlinedIcon from "@mui/icons-material/BarChartOutlined";
 import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
@@ -428,16 +427,6 @@ export default function DashboardPage() {
                   onClick={() => navigate("/time-entry")}
                 >
                   View All Entries
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  startIcon={<BarChartOutlinedIcon />}
-                  className="dash-action"
-                  fullWidth
-                  onClick={() => navigate("/time-entry")}
-                >
-                  Generate Report
                 </Button>
 
                 <Button

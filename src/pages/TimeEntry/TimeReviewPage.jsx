@@ -209,7 +209,7 @@ export default function TimeReviewPage() {
       </Box>
 
       {/* Table */}
-      <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+      <Paper variant="outlined" sx={{ borderRadius: "10px", overflow: "hidden" }}>
         {loading ? (
           <Box display="flex" justifyContent="center" py={8}>
             <CircularProgress />
@@ -321,7 +321,7 @@ export default function TimeReviewPage() {
                             color="success"
                             startIcon={<CheckCircleOutlineIcon />}
                             onClick={() => openApprove(entry)}
-                            sx={{ textTransform: "none", fontWeight: 700, borderRadius: 999 }}
+                            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "6px" }}
                           >
                             Approve
                           </Button>
@@ -331,7 +331,7 @@ export default function TimeReviewPage() {
                             color="error"
                             startIcon={<CancelOutlinedIcon />}
                             onClick={() => openReject(entry)}
-                            sx={{ textTransform: "none", fontWeight: 700, borderRadius: 999 }}
+                            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "6px" }}
                           >
                             Deny
                           </Button>
