@@ -1,6 +1,6 @@
 import React from "react";
 import { useForm, Controller } from "react-hook-form";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useSearchParams } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
@@ -14,6 +14,16 @@ import Alert from "@mui/material/Alert";
 import ZcorPill from "../components/ZcorPill";
 import { useAuth } from "../context/AuthContext";
 
+// Decode a JWT payload without a library (base64url → JSON)
+function decodeJwtPayload(token) {
+  try {
+    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
 const BG = "#CFF7E3";
 const DARK = "#214318";
 
@@ -26,7 +36,18 @@ const toUserId = (first = "", last = "") => {
 
 export default function SignUpPage() {
   const navigate = useNavigate();
-  const { register: registerUser } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { register: registerUser, registerInvited } = useAuth();
+
+  // Decode the invite token from the URL (client-side only, for pre-filling email)
+  const inviteToken = searchParams.get("invite");
+  const invitePayload = React.useMemo(
+    () => (inviteToken ? decodeJwtPayload(inviteToken) : null),
+    [inviteToken],
+  );
+  const inviteEmail     = invitePayload?.email     || "";
+  const inviteFirstName = invitePayload?.firstName || "";
+  const inviteLastName  = invitePayload?.lastName  || "";
 
   const [serverError, setServerError] = React.useState("");
   const [successMsg, setSuccessMsg] = React.useState("");
@@ -39,9 +60,9 @@ export default function SignUpPage() {
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
+      firstName: inviteFirstName,
+      lastName:  inviteLastName,
+      email:     inviteEmail,
       password: "",
       confirmPassword: "",
       terms: false,
@@ -58,13 +79,23 @@ export default function SignUpPage() {
     setSuccessMsg("");
 
     try {
-      await registerUser({
-        firstName: data.firstName.trim(),
-        lastName: data.lastName.trim(),
-        userId: toUserId(data.firstName, data.lastName),
-        email: data.email.trim(),
-        password: data.password,
-      });
+      if (inviteToken) {
+        await registerInvited({
+          token: inviteToken,
+          firstName: data.firstName.trim(),
+          lastName: data.lastName.trim(),
+          userId: toUserId(data.firstName, data.lastName),
+          password: data.password,
+        });
+      } else {
+        await registerUser({
+          firstName: data.firstName.trim(),
+          lastName: data.lastName.trim(),
+          userId: toUserId(data.firstName, data.lastName),
+          email: data.email.trim(),
+          password: data.password,
+        });
+      }
 
       setSuccessMsg("Account created! Please sign in.");
       setTimeout(() => {
@@ -114,7 +145,9 @@ export default function SignUpPage() {
               textAlign: "center",
             }}
           >
-            Enter your details to get started with ZCOR
+            {inviteToken
+              ? "You've been invited to join ZCOR"
+              : "Enter your details to get started with ZCOR"}
           </Typography>
 
           {serverError ? (
@@ -185,6 +218,7 @@ export default function SignUpPage() {
                   size="small"
                   placeholder="name@example.com"
                   autoComplete="email"
+                  disabled={!!inviteToken}
                   {...register("email", {
                     required: "Email is required",
                     pattern: {
@@ -193,7 +227,7 @@ export default function SignUpPage() {
                     },
                   })}
                   error={!!errors.email}
-                  helperText={errors.email?.message || " "}
+                  helperText={inviteToken ? "Pre-filled from your invitation" : (errors.email?.message || " ")}
                 />
               </Box>
 
