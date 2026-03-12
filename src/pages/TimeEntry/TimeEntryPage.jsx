@@ -126,7 +126,8 @@ export default function TimeEntryPage() {
 
   // ── form state ──────────────────────────────────────────────────────────
   const [editingId,   setEditingId]   = React.useState(null);
-  const [filterDate,  setFilterDate]  = React.useState("");
+  const [filterFrom,  setFilterFrom]  = React.useState("");
+  const [filterTo,    setFilterTo]    = React.useState("");
   const [projectId,   setProjectId]   = React.useState("");
   const [taskId,      setTaskId]      = React.useState("");
   const [desc,        setDesc]        = React.useState("");
@@ -197,9 +198,13 @@ export default function TimeEntryPage() {
   const submittedCount = entries.filter((e) => e.status === "Submitted").length;
   const approvedCount  = entries.filter((e) => e.status === "Approved").length;
 
-  const displayedEntries = filterDate
-    ? entries.filter((e) => e.date === filterDate)
-    : entries;
+  const displayedEntries = (filterFrom || filterTo)
+    ? entries.filter((e) => {
+        if (filterFrom && e.date < filterFrom) return false;
+        if (filterTo && e.date > filterTo) return false;
+        return true;
+      })
+    : weeklyEntries;
 
   const leaveConflict = React.useMemo(() => {
     if (!date) return null;
@@ -607,12 +612,22 @@ export default function TimeEntryPage() {
                     {displayedEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0).toFixed(1)}h total
                   </Typography>
                 </div>
-                <TextField
-                  size="small" type="date" value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                  className="te-dateMini" InputLabelProps={{ shrink: true }}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon fontSize="small" sx={{ opacity: 0.65 }} /></InputAdornment> }}
-                />
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <TextField
+                    size="small" type="date" value={filterFrom}
+                    onChange={(e) => setFilterFrom(e.target.value)}
+                    className="te-dateMini" label="From"
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon fontSize="small" sx={{ opacity: 0.65 }} /></InputAdornment> }}
+                  />
+                  <TextField
+                    size="small" type="date" value={filterTo}
+                    onChange={(e) => setFilterTo(e.target.value)}
+                    className="te-dateMini" label="To"
+                    InputLabelProps={{ shrink: true }}
+                    InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon fontSize="small" sx={{ opacity: 0.65 }} /></InputAdornment> }}
+                  />
+                </Stack>
               </div>
 
               {loading ? (
@@ -621,7 +636,7 @@ export default function TimeEntryPage() {
                 </Box>
               ) : displayedEntries.length === 0 ? (
                 <Typography variant="body2" sx={{ textAlign: "center", py: 4, opacity: 0.5 }}>
-                  {filterDate ? "No entries for this date." : "No entries yet. Add your first time entry above."}
+                  {(filterFrom || filterTo) ? "No entries for this date range." : "No entries this week. Add your first time entry above."}
                 </Typography>
               ) : (
                 <Stack spacing={1.6}>

@@ -27,6 +27,8 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import BeachAccessOutlinedIcon from "@mui/icons-material/BeachAccessOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
+import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
@@ -72,6 +74,10 @@ export default function ZcorHeader() {
     { label: "Inventory", path: "/inventory", icon: <Inventory2OutlinedIcon fontSize="small" /> },
     { label: "Schedule", path: "/schedule", icon: <EventNoteOutlinedIcon fontSize="small" /> },
     { label: "Leave", path: "/leave", icon: <BeachAccessOutlinedIcon fontSize="small" /> },
+    ...(isManagerOrOwner
+      ? [{ label: "Payroll", path: "/payroll", icon: <PaymentsOutlinedIcon fontSize="small" /> }]
+      : []),
+    { label: "Payslips", path: "/payslips", icon: <ReceiptLongOutlinedIcon fontSize="small" /> },
     { label: "Employees", path: "/employees", icon: <PeopleAltOutlinedIcon fontSize="small" /> },
     { label: "Settings", path: "/settings", icon: <SettingsOutlinedIcon fontSize="small" /> },
   ];
