@@ -4,6 +4,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -78,6 +79,13 @@ export default function TimeReviewPage() {
   const [reviewAction, setReviewAction] = useState(null); // "approve" | "reject"
   const [reviewNote, setReviewNote] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // selection state for mass actions
+  const [selected, setSelected] = useState(new Set());
+
+  // mass review dialog
+  const [massAction, setMassAction] = useState(null); // "approve" | "reject"
+  const [massNote, setMassNote] = useState("");
 
   // snackbar
   const [snack, setSnack] = useState({ open: false, severity: "success", message: "" });
@@ -163,12 +171,64 @@ export default function TimeReviewPage() {
     }
   }
 
+  // ─── selection helpers ──────────────────────────────────────────────────
+
+  function toggleSelect(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === filtered.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((e) => e.id)));
+    }
+  }
+
+  function closeMassDialog() {
+    setMassAction(null);
+    setMassNote("");
+  }
+
+  async function handleMassReview() {
+    if (!massAction || selected.size === 0) return;
+    setSaving(true);
+    try {
+      const ids = [...selected];
+      await Promise.all(
+        ids.map((id) =>
+          teApi.reviewTimeEntry(id, {
+            action: massAction,
+            reviewNote: massNote.trim() || undefined,
+          })
+        )
+      );
+      const count = ids.length;
+      showSnack(
+        `${count} ${count === 1 ? "entry" : "entries"} ${massAction === "approve" ? "approved" : "denied"}.`,
+        massAction === "approve" ? "success" : "info"
+      );
+      setSelected(new Set());
+      closeMassDialog();
+      loadEntries();
+    } catch (err) {
+      showSnack(err.message || "Mass review failed.", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // ─── render ──────────────────────────────────────────────────────────────
 
   const showActions = activeStatus === "submitted";
 
   return (
-    <Box sx={{ maxWidth: 1140, mx: "auto", px: { xs: 2, md: 4 }, py: 4 }}>
+    <Box sx={{ maxWidth: 1280, mx: "auto", px: { xs: 2, md: 4 }, py: 4 }}>
       {/* Page header */}
       <Box mb={3}>
         <Typography variant="h5" fontWeight={800}>
@@ -182,7 +242,7 @@ export default function TimeReviewPage() {
       {/* Status tabs */}
       <Tabs
         value={tabIndex}
-        onChange={(_, v) => { setTabIndex(v); setSearch(""); }}
+        onChange={(_, v) => { setTabIndex(v); setSearch(""); setSelected(new Set()); }}
         sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
       >
         <Tab label="Pending" />
@@ -208,6 +268,42 @@ export default function TimeReviewPage() {
         />
       </Box>
 
+      {/* Mass action buttons */}
+      {showActions && selected.size > 0 && (
+        <Stack direction="row" spacing={1.5} mb={2} alignItems="center">
+          <Typography variant="body2" fontWeight={700}>
+            {selected.size} selected
+          </Typography>
+          <Button
+            size="small"
+            variant="contained"
+            color="success"
+            startIcon={<CheckCircleOutlineIcon />}
+            onClick={() => { setMassAction("approve"); setMassNote(""); }}
+            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "6px" }}
+          >
+            Approve All
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            startIcon={<CancelOutlinedIcon />}
+            onClick={() => { setMassAction("reject"); setMassNote(""); }}
+            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "6px" }}
+          >
+            Deny All
+          </Button>
+          <Button
+            size="small"
+            onClick={() => setSelected(new Set())}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            Clear
+          </Button>
+        </Stack>
+      )}
+
       {/* Table */}
       <Paper variant="outlined" sx={{ borderRadius: "10px", overflow: "hidden" }}>
         {loading ? (
@@ -225,6 +321,16 @@ export default function TimeReviewPage() {
             <Table size="small">
               <TableHead>
                 <TableRow sx={{ bgcolor: "rgba(15,27,16,.04)" }}>
+                  {showActions && (
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        size="small"
+                        checked={filtered.length > 0 && selected.size === filtered.length}
+                        indeterminate={selected.size > 0 && selected.size < filtered.length}
+                        onChange={toggleSelectAll}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell sx={{ fontWeight: 700 }}>Employee</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Project</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Task</TableCell>
@@ -245,7 +351,16 @@ export default function TimeReviewPage() {
               </TableHead>
               <TableBody>
                 {filtered.map((entry) => (
-                  <TableRow key={entry.id} hover>
+                  <TableRow key={entry.id} hover selected={selected.has(entry.id)}>
+                    {showActions && (
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          size="small"
+                          checked={selected.has(entry.id)}
+                          onChange={() => toggleSelect(entry.id)}
+                        />
+                      </TableCell>
+                    )}
                     {/* Employee */}
                     <TableCell>
                       <Typography variant="body2" fontWeight={600}>
@@ -289,7 +404,7 @@ export default function TimeReviewPage() {
                     {/* Submitted at */}
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
                       <Typography variant="caption" color="text.secondary">
-                        {formatDateTime(entry.submittedAt)}
+                        {formatDate(entry.submittedAt)}
                       </Typography>
                     </TableCell>
 
@@ -313,15 +428,14 @@ export default function TimeReviewPage() {
 
                     {/* Action buttons (submitted tab) */}
                     {showActions && (
-                      <TableCell align="right">
-                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
                           <Button
                             size="small"
                             variant="contained"
                             color="success"
-                            startIcon={<CheckCircleOutlineIcon />}
                             onClick={() => openApprove(entry)}
-                            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "6px" }}
+                            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "6px", minWidth: 0, px: 1.5, fontSize: 12 }}
                           >
                             Approve
                           </Button>
@@ -329,9 +443,8 @@ export default function TimeReviewPage() {
                             size="small"
                             variant="outlined"
                             color="error"
-                            startIcon={<CancelOutlinedIcon />}
                             onClick={() => openReject(entry)}
-                            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "6px" }}
+                            sx={{ textTransform: "none", fontWeight: 700, borderRadius: "6px", minWidth: 0, px: 1.5, fontSize: 12 }}
                           >
                             Deny
                           </Button>
@@ -474,6 +587,52 @@ export default function TimeReviewPage() {
             sx={{ textTransform: "none", fontWeight: 700 }}
           >
             {saving ? "Denying…" : "Deny"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Mass Review Dialog ─────────────────────────────────────────────── */}
+      <Dialog
+        open={Boolean(massAction)}
+        onClose={closeMassDialog}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          {massAction === "approve" ? "Approve" : "Deny"} {selected.size} {selected.size === 1 ? "Entry" : "Entries"}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Are you sure you want to {massAction === "approve" ? "approve" : "deny"}{" "}
+            <strong>{selected.size}</strong> selected {selected.size === 1 ? "entry" : "entries"}?
+          </Typography>
+          <TextField
+            label={massAction === "approve" ? "Note (optional)" : "Reason for denial (optional)"}
+            multiline
+            rows={3}
+            fullWidth
+            size="small"
+            value={massNote}
+            onChange={(e) => setMassNote(e.target.value)}
+            sx={{ mt: 2 }}
+            inputProps={{ maxLength: 500 }}
+            helperText={massAction === "reject" ? "This note will be visible to the employees." : undefined}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={closeMassDialog} disabled={saving} sx={{ textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color={massAction === "approve" ? "success" : "error"}
+            onClick={handleMassReview}
+            disabled={saving}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            {saving
+              ? (massAction === "approve" ? "Approving…" : "Denying…")
+              : (massAction === "approve" ? `Approve ${selected.size}` : `Deny ${selected.size}`)}
           </Button>
         </DialogActions>
       </Dialog>

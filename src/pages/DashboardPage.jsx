@@ -11,6 +11,8 @@ import {
   Avatar,
   Divider,
   Button,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import Grid from "@mui/material/Grid";
 
@@ -20,8 +22,6 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import HourglassEmptyOutlinedIcon from "@mui/icons-material/HourglassEmptyOutlined";
 
 import AddOutlinedIcon from "@mui/icons-material/AddOutlined";
-import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
-import EventOutlinedIcon from "@mui/icons-material/EventOutlined";
 
 import CheckCircleRoundedIcon from "@mui/icons-material/CheckCircleRounded";
 import ScheduleRoundedIcon from "@mui/icons-material/ScheduleRounded";
@@ -113,6 +113,7 @@ export default function DashboardPage() {
   const [monthEntries, setMonthEntries] = React.useState([]);
   const [loading,      setLoading]      = React.useState(true);
   const [error,        setError]        = React.useState("");
+  const [showWeekends, setShowWeekends] = React.useState(false);
 
   // Stable date references — computed once on mount
   const today    = React.useMemo(() => localToday(), []);
@@ -273,8 +274,24 @@ export default function DashboardPage() {
           {/* ── Row 2: Weekly Hours bar chart ── */}
           <Grid size={12}>
             <Paper className="dash-card dash-big" elevation={0}>
-              <Typography className="dash-card__title">Weekly Hours</Typography>
-              <Typography className="dash-card__subtitle">Hours worked each day this week</Typography>
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                <Box>
+                  <Typography className="dash-card__title">Weekly Hours</Typography>
+                  <Typography className="dash-card__subtitle">Hours worked each day this week</Typography>
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showWeekends}
+                      onChange={(e) => setShowWeekends(e.target.checked)}
+                      size="small"
+                      sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: "#163a2f" }, "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#163a2f" } }}
+                    />
+                  }
+                  label={<Typography sx={{ fontSize: 13, fontWeight: 600 }}>Show Weekends</Typography>}
+                  sx={{ mr: 0 }}
+                />
+              </Stack>
 
               <Box className="dash-chartBox">
                 {loading ? (
@@ -283,7 +300,7 @@ export default function DashboardPage() {
                   </Box>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={weeklyBars} barGap={8}>
+                    <BarChart data={showWeekends ? weeklyBars : weeklyBars.slice(0, 5)} barGap={8}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="day" />
                       <YAxis />
@@ -417,26 +434,6 @@ export default function DashboardPage() {
                   onClick={() => navigate("/time-entry")}
                 >
                   Log New Time Entry
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  startIcon={<ListAltOutlinedIcon />}
-                  className="dash-action"
-                  fullWidth
-                  onClick={() => navigate("/time-entry")}
-                >
-                  View All Entries
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  startIcon={<EventOutlinedIcon />}
-                  className="dash-action"
-                  fullWidth
-                  onClick={() => navigate("/calendar")}
-                >
-                  View Calendar
                 </Button>
               </Stack>
 

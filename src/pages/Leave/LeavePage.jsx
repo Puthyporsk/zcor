@@ -27,8 +27,12 @@ import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+
 import { useAuth } from "../../context/AuthContext";
 import * as leaveApi from "../../api/leave";
+import * as policyApi from "../../api/leavePolicy";
 import { getUsers } from "../../api/user";
 import "../../styles/leave.css";
 
@@ -96,11 +100,12 @@ const emptyForm = () => ({
 
 function BalanceCard({ type, balances }) {
   const b = balances.find((x) => x.type === type);
-  const allocated = b?.allocated ?? 0;
-  const used      = b?.used      ?? 0;
-  const pending   = b?.pending   ?? 0;
-  const remaining = Math.max(0, allocated - used - pending);
-  const usedPct   = allocated > 0 ? Math.min(100, ((used + pending) / allocated) * 100) : 0;
+  const allocated  = b?.allocated  ?? 0;
+  const used       = b?.used       ?? 0;
+  const pending    = b?.pending    ?? 0;
+  const carriedOver = b?.carriedOver ?? 0;
+  const remaining  = Math.max(0, allocated - used - pending);
+  const usedPct    = allocated > 0 ? Math.min(100, ((used + pending) / allocated) * 100) : 0;
 
   const fillClass =
     usedPct >= 90 ? "lv-balCard__barFill--danger"
@@ -120,7 +125,8 @@ function BalanceCard({ type, balances }) {
         </Typography>
       </Typography>
       <Typography className="lv-balCard__sub">
-        {used.toFixed(1)}h used · {pending.toFixed(1)}h pending · {allocated.toFixed(1)}h total
+        {used.toFixed(1)}h used · {pending.toFixed(1)}h pending · {allocated.toFixed(1)}h accrued
+        {carriedOver > 0 && ` · ${carriedOver.toFixed(1)}h carried over`}
       </Typography>
       <Box className="lv-balCard__bar">
         <Box
@@ -165,6 +171,18 @@ export default function LeavePage() {
   const [allocSaving, setAllocSaving] = React.useState(false);
   const [allocError,  setAllocError]  = React.useState("");
 
+  // ── accrual policy (owner only) ──
+  const isOwner = user?.role === "owner";
+  const [policyOpen,   setPolicyOpen]   = React.useState(false);
+  const [policy,       setPolicy]       = React.useState(null);
+  const [policyForm,   setPolicyForm]   = React.useState(null);
+  const [policySaving, setPolicySaving] = React.useState(false);
+
+  // ── carryover ──
+  const [carryoverOpen,   setCarryoverOpen]   = React.useState(false);
+  const [carryoverYear,   setCarryoverYear]   = React.useState(currentYear - 1);
+  const [carryoverSaving, setCarryoverSaving] = React.useState(false);
+
   // ── snackbar ──
   const [snack, setSnack] = React.useState({ open: false, msg: "", severity: "success" });
   const toast = (msg, severity = "success") => setSnack({ open: true, msg, severity });
@@ -188,6 +206,12 @@ export default function LeavePage() {
         setTeamRequests(pending.filter((r) => r.employee?._id !== user._id && r.employee?.userId !== user.userId));
         const users = await getUsers();
         setEmployees(users.filter((u) => u.status === "active"));
+
+        // Load accrual policy
+        try {
+          const pol = await policyApi.getLeavePolicy();
+          setPolicy(pol);
+        } catch { /* ignore if policy doesn't exist */ }
       }
     } catch (e) {
       toast(e.message || "Failed to load leave data", "error");
@@ -320,6 +344,84 @@ export default function LeavePage() {
       setAllocError(err.message || "Failed to update");
     } finally {
       setAllocSaving(false);
+    }
+  };
+
+  // ── accrual policy ──
+  const openPolicyDialog = () => {
+    setPolicyForm(policy ? {
+      accrualEnabled: policy.accrualEnabled ?? false,
+      tenureTiers: policy.tenureTiers?.length > 0
+        ? policy.tenureTiers.map((t) => ({ ...t }))
+        : [{ minYears: 0, vacationHours: 80, sickHours: 40, personalHours: 0 }],
+      accrualCapMultiplier: {
+        vacation: policy.accrualCapMultiplier?.vacation ?? 1.5,
+        sick:     policy.accrualCapMultiplier?.sick     ?? 1.5,
+        personal: policy.accrualCapMultiplier?.personal ?? 1.5,
+      },
+      carryoverLimits: {
+        vacation: policy.carryoverLimits?.vacation ?? 40,
+        sick:     policy.carryoverLimits?.sick     ?? 40,
+        personal: policy.carryoverLimits?.personal ?? 0,
+      },
+      waitingPeriodDays: policy.waitingPeriodDays ?? 90,
+    } : {
+      accrualEnabled: false,
+      tenureTiers: [{ minYears: 0, vacationHours: 80, sickHours: 40, personalHours: 0 }],
+      accrualCapMultiplier: { vacation: 1.5, sick: 1.5, personal: 1.5 },
+      carryoverLimits: { vacation: 40, sick: 40, personal: 0 },
+      waitingPeriodDays: 90,
+    });
+    setPolicyOpen(true);
+  };
+
+  const addTier = () => {
+    setPolicyForm((f) => ({
+      ...f,
+      tenureTiers: [...f.tenureTiers, { minYears: 0, vacationHours: 0, sickHours: 0, personalHours: 0 }],
+    }));
+  };
+
+  const removeTier = (idx) => {
+    setPolicyForm((f) => ({
+      ...f,
+      tenureTiers: f.tenureTiers.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const updateTier = (idx, field, value) => {
+    setPolicyForm((f) => {
+      const tiers = [...f.tenureTiers];
+      tiers[idx] = { ...tiers[idx], [field]: Number(value) || 0 };
+      return { ...f, tenureTiers: tiers };
+    });
+  };
+
+  const savePolicy = async () => {
+    setPolicySaving(true);
+    try {
+      const updated = await policyApi.updateLeavePolicy(policyForm);
+      setPolicy(updated);
+      setPolicyOpen(false);
+      toast("Accrual policy saved");
+    } catch (err) {
+      toast(err.message || "Failed to save policy", "error");
+    } finally {
+      setPolicySaving(false);
+    }
+  };
+
+  const submitCarryover = async () => {
+    setCarryoverSaving(true);
+    try {
+      const result = await policyApi.runCarryover(carryoverYear);
+      toast(`Carryover processed for ${result.processed} employees`);
+      setCarryoverOpen(false);
+      await load();
+    } catch (err) {
+      toast(err.message || "Carryover failed", "error");
+    } finally {
+      setCarryoverSaving(false);
     }
   };
 
@@ -621,6 +723,50 @@ export default function LeavePage() {
                         Set Employee Allocation
                       </Button>
                     </Paper>
+
+                    {/* Accrual Policy (owner only) */}
+                    {isOwner && (
+                      <Paper elevation={0} className="lv-card">
+                        <Typography variant="h6" className="lv-cardTitle">Accrual Policy</Typography>
+                        <Typography className="lv-cardSub">
+                          {policy?.accrualEnabled
+                            ? "Per-pay-period accrual is enabled"
+                            : "Accrual is currently disabled (lump-sum mode)"}
+                        </Typography>
+                        {policy && (
+                          <Stack spacing={0.75} sx={{ my: 1.5 }}>
+                            <Typography sx={{ fontSize: 12, fontWeight: 700, opacity: 0.6 }}>TENURE TIERS</Typography>
+                            {[...(policy.tenureTiers || [])].sort((a, b) => a.minYears - b.minYears).map((t, i) => (
+                              <Typography key={i} sx={{ fontSize: 13 }}>
+                                {t.minYears}+ yrs: {t.vacationHours}h vacation, {t.sickHours}h sick, {t.personalHours}h personal
+                              </Typography>
+                            ))}
+                            <Divider sx={{ my: 0.5 }} />
+                            <Typography sx={{ fontSize: 13 }}>
+                              Cap: {policy.accrualCapMultiplier?.vacation ?? 1.5}x · Waiting: {policy.waitingPeriodDays ?? 90} days
+                            </Typography>
+                            <Typography sx={{ fontSize: 13 }}>
+                              Carryover: {policy.carryoverLimits?.vacation ?? 0}h vac, {policy.carryoverLimits?.sick ?? 0}h sick, {policy.carryoverLimits?.personal ?? 0}h personal
+                            </Typography>
+                          </Stack>
+                        )}
+                        <Stack spacing={1}>
+                          <Button
+                            variant="outlined" fullWidth onClick={openPolicyDialog}
+                            sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
+                          >
+                            Configure Policy
+                          </Button>
+                          <Button
+                            variant="outlined" fullWidth
+                            onClick={() => setCarryoverOpen(true)}
+                            sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
+                          >
+                            Run Year-End Carryover
+                          </Button>
+                        </Stack>
+                      </Paper>
+                    )}
                   </>
                 )}
 
@@ -815,6 +961,193 @@ export default function LeavePage() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setAllPendingOpen(false)} sx={{ textTransform: "none", fontWeight: 800 }}>
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Accrual Policy dialog */}
+      <Dialog
+        open={policyOpen}
+        onClose={() => setPolicyOpen(false)}
+        maxWidth="sm" fullWidth
+        PaperProps={{ sx: { borderRadius: "16px" } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>Accrual Policy Configuration</DialogTitle>
+        <DialogContent dividers>
+          {policyForm && (
+            <Stack spacing={2.5} sx={{ pt: 0.5 }}>
+              {/* Enable toggle */}
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography sx={{ fontWeight: 700, fontSize: 14 }}>Enable Per-Pay-Period Accrual</Typography>
+                  <Typography sx={{ fontSize: 12, color: "rgba(15,27,16,0.55)" }}>
+                    When disabled, allocations are set manually (lump sum)
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant={policyForm.accrualEnabled ? "contained" : "outlined"}
+                  onClick={() => setPolicyForm((f) => ({ ...f, accrualEnabled: !f.accrualEnabled }))}
+                  sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800, minWidth: 80,
+                    ...(policyForm.accrualEnabled ? { bgcolor: "#163A2E" } : {}) }}
+                >
+                  {policyForm.accrualEnabled ? "Enabled" : "Disabled"}
+                </Button>
+              </Stack>
+
+              <Divider />
+
+              {/* Tenure Tiers */}
+              <Box>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                  <Typography sx={{ fontWeight: 800, fontSize: 14 }}>Tenure Tiers</Typography>
+                  <IconButton size="small" onClick={addTier} color="primary">
+                    <AddCircleOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+                <Typography sx={{ fontSize: 12, color: "rgba(15,27,16,0.55)", mb: 1.5 }}>
+                  Employees get the allocation from the highest tier they qualify for based on years of service
+                </Typography>
+                {policyForm.tenureTiers.map((tier, idx) => (
+                  <Stack key={idx} direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <TextField
+                      size="small" type="number" label="Min Years" sx={{ width: 90 }}
+                      value={tier.minYears} onChange={(e) => updateTier(idx, "minYears", e.target.value)}
+                      inputProps={{ min: 0 }}
+                    />
+                    <TextField
+                      size="small" type="number" label="Vacation (h)" sx={{ width: 110 }}
+                      value={tier.vacationHours} onChange={(e) => updateTier(idx, "vacationHours", e.target.value)}
+                      inputProps={{ min: 0 }}
+                    />
+                    <TextField
+                      size="small" type="number" label="Sick (h)" sx={{ width: 90 }}
+                      value={tier.sickHours} onChange={(e) => updateTier(idx, "sickHours", e.target.value)}
+                      inputProps={{ min: 0 }}
+                    />
+                    <TextField
+                      size="small" type="number" label="Personal (h)" sx={{ width: 110 }}
+                      value={tier.personalHours} onChange={(e) => updateTier(idx, "personalHours", e.target.value)}
+                      inputProps={{ min: 0 }}
+                    />
+                    <IconButton
+                      size="small" onClick={() => removeTier(idx)}
+                      disabled={policyForm.tenureTiers.length <= 1}
+                      color="error"
+                    >
+                      <RemoveCircleOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                ))}
+              </Box>
+
+              <Divider />
+
+              {/* Accrual Caps */}
+              <Box>
+                <Typography sx={{ fontWeight: 800, fontSize: 14, mb: 0.5 }}>Accrual Cap Multiplier</Typography>
+                <Typography sx={{ fontSize: 12, color: "rgba(15,27,16,0.55)", mb: 1.5 }}>
+                  Stop accruing when balance reaches annual allocation x multiplier
+                </Typography>
+                <Stack direction="row" spacing={1.5}>
+                  {LEAVE_TYPES.map((t) => (
+                    <TextField
+                      key={t} size="small" type="number" label={capitalize(t)}
+                      value={policyForm.accrualCapMultiplier[t]}
+                      onChange={(e) => setPolicyForm((f) => ({
+                        ...f,
+                        accrualCapMultiplier: { ...f.accrualCapMultiplier, [t]: Number(e.target.value) || 0 },
+                      }))}
+                      inputProps={{ min: 1, step: 0.1 }}
+                      sx={{ flex: 1 }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              {/* Carryover Limits */}
+              <Box>
+                <Typography sx={{ fontWeight: 800, fontSize: 14, mb: 0.5 }}>Carryover Limits (hours)</Typography>
+                <Typography sx={{ fontSize: 12, color: "rgba(15,27,16,0.55)", mb: 1.5 }}>
+                  Max unused hours that roll into the next year (0 = use-it-or-lose-it)
+                </Typography>
+                <Stack direction="row" spacing={1.5}>
+                  {LEAVE_TYPES.map((t) => (
+                    <TextField
+                      key={t} size="small" type="number" label={capitalize(t)}
+                      value={policyForm.carryoverLimits[t]}
+                      onChange={(e) => setPolicyForm((f) => ({
+                        ...f,
+                        carryoverLimits: { ...f.carryoverLimits, [t]: Number(e.target.value) || 0 },
+                      }))}
+                      inputProps={{ min: 0, step: 8 }}
+                      sx={{ flex: 1 }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              {/* Waiting Period */}
+              <Box>
+                <Typography sx={{ fontWeight: 800, fontSize: 14, mb: 0.5 }}>Waiting Period</Typography>
+                <Typography sx={{ fontSize: 12, color: "rgba(15,27,16,0.55)", mb: 1 }}>
+                  No accrual during the first N days of employment
+                </Typography>
+                <TextField
+                  size="small" type="number" label="Days"
+                  value={policyForm.waitingPeriodDays}
+                  onChange={(e) => setPolicyForm((f) => ({ ...f, waitingPeriodDays: Number(e.target.value) || 0 }))}
+                  inputProps={{ min: 0 }}
+                  sx={{ width: 120 }}
+                />
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setPolicyOpen(false)} sx={{ textTransform: "none", fontWeight: 800 }}>Cancel</Button>
+          <Button
+            variant="contained" onClick={savePolicy} disabled={policySaving}
+            sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800, bgcolor: "#163A2E" }}
+          >
+            {policySaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "Save Policy"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Carryover dialog */}
+      <Dialog
+        open={carryoverOpen}
+        onClose={() => setCarryoverOpen(false)}
+        PaperProps={{ sx: { borderRadius: "16px", minWidth: 360 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>Run Year-End Carryover</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: 13, color: "rgba(15,27,16,0.60)", mb: 2 }}>
+            This will carry unused hours from the selected year into the next year,
+            up to the configured carryover limits. Hours above the limit are forfeited.
+          </Typography>
+          <TextField
+            select label="From Year" fullWidth size="small"
+            value={carryoverYear}
+            onChange={(e) => setCarryoverYear(parseInt(e.target.value, 10))}
+          >
+            {[currentYear - 2, currentYear - 1, currentYear].map((y) => (
+              <MenuItem key={y} value={y}>{y} &rarr; {y + 1}</MenuItem>
+            ))}
+          </TextField>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setCarryoverOpen(false)} sx={{ textTransform: "none", fontWeight: 800 }}>Cancel</Button>
+          <Button
+            variant="contained" onClick={submitCarryover} disabled={carryoverSaving}
+            sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800, bgcolor: "#163A2E" }}
+          >
+            {carryoverSaving ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "Run Carryover"}
           </Button>
         </DialogActions>
       </Dialog>

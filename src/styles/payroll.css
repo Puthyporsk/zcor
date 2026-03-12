@@ -1,0 +1,300 @@
+/* Payroll Page */
+
+.pr-root {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 700px at 20% 10%, rgba(255,255,255,0.55), rgba(255,255,255,0) 60%),
+    radial-gradient(900px 600px at 85% 12%, rgba(210,230,255,0.35), rgba(255,255,255,0) 60%),
+    #CFF8E6;
+}
+
+/* Topbar */
+.pr-topbar {
+  width: 100%;
+  background: #163A2E;
+  color: #fff;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.12);
+}
+
+.pr-topbar__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pr-topbar__title {
+  font-weight: 900 !important;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
+.pr-topbar__sub {
+  opacity: 0.78;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* Main container */
+.pr-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 16px 90px;
+}
+
+/* Summary cards row */
+.pr-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pr-statCard {
+  border-radius: 18px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.94) !important;
+  box-shadow: 0 18px 55px rgba(15,27,16,0.10) !important;
+  padding: 20px 20px !important;
+}
+
+.pr-statCard__label {
+  font-weight: 900 !important;
+  font-size: 13px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(15,27,16,0.55) !important;
+  margin-bottom: 8px !important;
+}
+
+.pr-statCard__value {
+  font-weight: 900 !important;
+  font-size: 28px !important;
+  line-height: 1.1;
+}
+
+.pr-statCard__sub {
+  font-size: 12px !important;
+  color: rgba(15,27,16,0.55) !important;
+  margin-top: 4px !important;
+}
+
+/* Grid layout */
+.pr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Cards */
+.pr-card {
+  border-radius: 18px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.94) !important;
+  box-shadow: 0 18px 55px rgba(15,27,16,0.10) !important;
+  padding: 22px !important;
+}
+
+.pr-cardTitle {
+  font-weight: 900 !important;
+  margin-bottom: 4px !important;
+}
+
+.pr-cardSub {
+  color: rgba(15,27,16,0.60) !important;
+  font-size: 13px !important;
+  margin-bottom: 18px !important;
+}
+
+/* Form grid */
+.pr-formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+.pr-formGrid__full {
+  grid-column: 1 / -1;
+}
+
+.pr-label {
+  display: inline-block;
+  font-weight: 900 !important;
+  margin-bottom: 6px !important;
+}
+
+.pr-required {
+  color: #c62828;
+  font-weight: 900;
+}
+
+.pr-submitBtn {
+  margin-top: 16px !important;
+  border-radius: 999px !important;
+  text-transform: none !important;
+  font-weight: 900 !important;
+  padding: 12px 14px !important;
+  background: #163A2E !important;
+  box-shadow: 0 12px 26px rgba(15,27,16,0.18) !important;
+}
+
+/* Period list rows */
+.pr-periodRow {
+  border-radius: 14px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.88) !important;
+  padding: 14px !important;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+
+.pr-periodRow:hover {
+  box-shadow: 0 6px 20px rgba(15,27,16,0.12) !important;
+}
+
+.pr-periodRow__title {
+  font-weight: 900 !important;
+  font-size: 14px !important;
+}
+
+.pr-periodRow__meta {
+  color: rgba(15,27,16,0.60) !important;
+  font-size: 13px !important;
+}
+
+/* Payslip detail rows */
+.pr-slipRow {
+  border-radius: 14px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.88) !important;
+  padding: 14px !important;
+}
+
+.pr-slipRow__name {
+  font-weight: 900 !important;
+  font-size: 14px !important;
+}
+
+.pr-slipRow__meta {
+  color: rgba(15,27,16,0.60) !important;
+  font-size: 13px !important;
+}
+
+.pr-slipRow__amount {
+  font-weight: 900 !important;
+  font-size: 16px !important;
+}
+
+/* Deduction breakdown */
+.pr-deductionRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(15,27,16,0.06);
+}
+
+.pr-deductionRow:last-child {
+  border-bottom: none;
+}
+
+.pr-deductionRow__name {
+  font-size: 13px !important;
+  color: rgba(15,27,16,0.70) !important;
+}
+
+.pr-deductionRow__amount {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+/* Totals line */
+.pr-totalLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 2px solid rgba(15,27,16,0.12);
+  margin-top: 8px;
+}
+
+.pr-totalLine__label {
+  font-weight: 900 !important;
+  font-size: 15px !important;
+}
+
+.pr-totalLine__value {
+  font-weight: 900 !important;
+  font-size: 18px !important;
+}
+
+.pr-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: rgba(15,27,16,0.45);
+  font-size: 14px;
+}
+
+/* Employee payslip card */
+.pr-empSlip {
+  border-radius: 18px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.94) !important;
+  box-shadow: 0 18px 55px rgba(15,27,16,0.10) !important;
+  padding: 22px !important;
+  margin-bottom: 16px !important;
+}
+
+.pr-empSlip__period {
+  font-weight: 900 !important;
+  font-size: 15px !important;
+}
+
+.pr-empSlip__dates {
+  color: rgba(15,27,16,0.60) !important;
+  font-size: 13px !important;
+}
+
+.pr-empSlip__net {
+  font-weight: 900 !important;
+  font-size: 24px !important;
+  color: #163A2E !important;
+}
+
+/* Section dividers inside payslip detail */
+.pr-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(15,27,16,0.08);
+}
+
+.pr-sectionTitle {
+  font-weight: 900 !important;
+  font-size: 12px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(15,27,16,0.45) !important;
+  margin-bottom: 8px !important;
+}
+
+@media (max-width: 1023px) {
+  .pr-grid {
+    grid-template-columns: 1fr;
+  }
+  .pr-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .pr-formGrid {
+    grid-template-columns: 1fr;
+  }
+  .pr-summary {
+    grid-template-columns: 1fr;
+  }
+}

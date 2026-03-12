@@ -20,6 +20,8 @@ import SchedulePage from "./pages/Schedule/SchedulePage";
 import EmployeesPage from "./pages/EmployeesPage";
 import InventoryPage from "./pages/InventoryPage";
 import LeavePage from "./pages/Leave/LeavePage";
+import PayrollPage from "./pages/Payroll/PayrollPage";
+import PayslipsPage from "./pages/Payroll/PayslipsPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -50,6 +52,8 @@ export default function App() {
                   <Route path="/employees" element={<EmployeesPage />} />
                   <Route path="/inventory" element={<InventoryPage />} />
                   <Route path="/leave" element={<LeavePage />} />
+                  <Route path="/payroll" element={<PayrollPage />} />
+                  <Route path="/payslips" element={<PayslipsPage />} />
                   <Route path="/settings" element={<Outlet />}>
                     <Route index element={<AccountSettings />} />
                     <Route path="change-password" element={<ChangePasswordPage />} />
