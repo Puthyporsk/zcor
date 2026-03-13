@@ -30,6 +30,7 @@ jobs:
       - run: npm run build
         env:
           CI: false
+          GENERATE_SOURCEMAP: false
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
 
       - uses: actions/upload-pages-artifact@v3
