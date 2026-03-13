@@ -28,7 +28,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 export default function App() {
   return (
     <React.StrictMode>
-      <BrowserRouter>
+      <BrowserRouter basename={process.env.PUBLIC_URL}>
         <AuthProvider>
           <ThemeProvider theme={zcorTheme}>
             <CssBaseline />
