@@ -721,8 +721,114 @@
   margin-top: 4px;
 }
 
+/* ── Month grid ─────────────────────────────────────────────────────────── */
+.sched-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.sched-month-header {
+  background: #1a3a2e;
+  color: #fff;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 10px 4px;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+.sched-month-header:last-of-type {
+  border-right: none;
+}
+
+.sched-month-cell {
+  min-height: 85px;
+  padding: 6px 8px;
+  border-right: 1px solid rgba(16, 24, 40, 0.07);
+  border-bottom: 1px solid rgba(16, 24, 40, 0.07);
+  cursor: pointer;
+  transition: background 0.12s;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sched-month-cell:nth-child(7n+14) {
+  border-right: none;
+}
+
+.sched-month-cell:hover {
+  background: rgba(26, 58, 46, 0.04);
+}
+
+.sched-month-cell:focus-visible {
+  outline: 2px solid #1a3a2e;
+  outline-offset: -2px;
+}
+
+.sched-month-cell--dimmed {
+  opacity: 0.35;
+}
+
+.sched-month-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0e2e25;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  line-height: 1;
+}
+
+.sched-month-date--today {
+  background: #1a3a2e;
+  color: #fff;
+}
+
+.sched-month-badge {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(26, 58, 46, 0.12);
+  color: #1a3a2e;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.sched-month-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+}
+
+.sched-month-dot-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(14, 46, 37, 0.70);
+}
+
+.sched-month-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* Responsive */
 @media (max-width: 700px) {
   .sched-stats { grid-template-columns: 1fr; }
   .sched-filters { flex-direction: column; }
+  .sched-month-cell { min-height: 65px; padding: 4px 5px; }
+  .sched-month-date { font-size: 11px; width: 22px; height: 22px; }
+  .sched-month-badge { font-size: 9px; }
 }
