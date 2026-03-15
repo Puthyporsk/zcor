@@ -73,6 +73,7 @@ export default function TimeReviewPage() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showAll, setShowAll] = useState(false);
 
   // dialog state
   const [reviewEntry, setReviewEntry] = useState(null);
@@ -104,13 +105,21 @@ export default function TimeReviewPage() {
   useEffect(() => {
     loadEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeStatus]);
+  }, [activeStatus, showAll]);
 
   async function loadEntries() {
     setLoading(true);
     try {
       const data = await teApi.getTimeEntries({ status: activeStatus });
-      setEntries(data);
+      // For approved/rejected tabs, only show entries reviewed in the last 14 days unless showAll
+      if (activeStatus !== "submitted" && !showAll) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 14);
+        const recent = data.filter((e) => e.reviewedAt && new Date(e.reviewedAt) >= cutoff);
+        setEntries(recent);
+      } else {
+        setEntries(data);
+      }
     } catch (err) {
       showSnack(err.message || "Failed to load entries.", "error");
     } finally {
@@ -242,7 +251,7 @@ export default function TimeReviewPage() {
       {/* Status tabs */}
       <Tabs
         value={tabIndex}
-        onChange={(_, v) => { setTabIndex(v); setSearch(""); setSelected(new Set()); }}
+        onChange={(_, v) => { setTabIndex(v); setSearch(""); setSelected(new Set()); setShowAll(false); }}
         sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
       >
         <Tab label="Pending" />
@@ -313,7 +322,9 @@ export default function TimeReviewPage() {
         ) : filtered.length === 0 ? (
           <Box py={8} textAlign="center">
             <Typography color="text.secondary">
-              No {activeStatus} entries found.
+              {activeStatus === "submitted"
+                ? "No pending entries found."
+                : `No ${activeStatus} entries in the last 14 days.`}
             </Typography>
           </Box>
         ) : (
@@ -336,9 +347,12 @@ export default function TimeReviewPage() {
                   <TableCell sx={{ fontWeight: 700 }}>Task</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Hours</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Submitted</TableCell>
+                  {showActions && <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>}
+                  {showActions && <TableCell sx={{ fontWeight: 700 }}>Submitted</TableCell>}
                   <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                  {!showActions && (
+                    <TableCell sx={{ fontWeight: 700 }}>Reviewed By</TableCell>
+                  )}
                   {!showActions && (
                     <TableCell sx={{ fontWeight: 700 }}>Review Note</TableCell>
                   )}
@@ -391,22 +405,26 @@ export default function TimeReviewPage() {
                       </Typography>
                     </TableCell>
 
-                    {/* Type */}
-                    <TableCell>
-                      <Chip
-                        label={capitalize(entry.type)}
-                        size="small"
-                        variant="outlined"
-                        sx={{ fontSize: 11 }}
-                      />
-                    </TableCell>
+                    {/* Type (pending tab only) */}
+                    {showActions && (
+                      <TableCell>
+                        <Chip
+                          label={capitalize(entry.type)}
+                          size="small"
+                          variant="outlined"
+                          sx={{ fontSize: 11 }}
+                        />
+                      </TableCell>
+                    )}
 
-                    {/* Submitted at */}
-                    <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatDate(entry.submittedAt)}
-                      </Typography>
-                    </TableCell>
+                    {/* Submitted at (pending tab only) */}
+                    {showActions && (
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDate(entry.submittedAt)}
+                        </Typography>
+                      </TableCell>
+                    )}
 
                     {/* Status chip */}
                     <TableCell>
@@ -416,6 +434,18 @@ export default function TimeReviewPage() {
                         color={STATUS_COLOR[entry.status] || "default"}
                       />
                     </TableCell>
+
+                    {/* Reviewed by (approved / rejected tab) */}
+                    {!showActions && (
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          {entry.reviewedBy ? `${entry.reviewedBy.firstName} ${entry.reviewedBy.lastName}` : "—"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatDateTime(entry.reviewedAt)}
+                        </Typography>
+                      </TableCell>
+                    )}
 
                     {/* Review note (approved / rejected tab) */}
                     {!showActions && (
@@ -461,9 +491,30 @@ export default function TimeReviewPage() {
 
       {/* Row count */}
       {!loading && (
-        <Typography variant="caption" color="text.secondary" mt={1} display="block">
-          {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
-        </Typography>
+        <Stack direction="row" alignItems="center" spacing={1} mt={1}>
+          <Typography variant="caption" color="text.secondary">
+            {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
+            {!showAll && activeStatus !== "submitted" && " from the last 14 days"}
+          </Typography>
+          {!showAll && activeStatus !== "submitted" && (
+            <Button
+              size="small"
+              onClick={() => setShowAll(true)}
+              sx={{ textTransform: "none", fontSize: 12, fontWeight: 600, minWidth: 0, p: 0 }}
+            >
+              View all
+            </Button>
+          )}
+          {showAll && activeStatus !== "submitted" && (
+            <Button
+              size="small"
+              onClick={() => setShowAll(false)}
+              sx={{ textTransform: "none", fontSize: 12, fontWeight: 600, minWidth: 0, p: 0 }}
+            >
+              Show recent only
+            </Button>
+          )}
+        </Stack>
       )}
 
       {/* ── Approve Dialog ──────────────────────────────────────────────────── */}
