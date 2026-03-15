@@ -78,7 +78,9 @@ export default function ZcorHeader() {
       ? [{ label: "Payroll", path: "/payroll", icon: <PaymentsOutlinedIcon fontSize="small" /> }]
       : []),
     { label: "Payslips", path: "/payslips", icon: <ReceiptLongOutlinedIcon fontSize="small" /> },
-    { label: "Employees", path: "/employees", icon: <PeopleAltOutlinedIcon fontSize="small" /> },
+    ...(isManagerOrOwner
+      ? [{ label: "Employees", path: "/employees", icon: <PeopleAltOutlinedIcon fontSize="small" /> }]
+      : []),
     { label: "Settings", path: "/settings", icon: <SettingsOutlinedIcon fontSize="small" /> },
   ];
 
