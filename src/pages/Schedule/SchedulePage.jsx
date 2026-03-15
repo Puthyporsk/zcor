@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Typography, Box, Paper, Button, IconButton,
+  Typography, Box, Paper, Button, IconButton, TextField,
   Select, MenuItem, FormControl, FormControlLabel,
   Checkbox, Stack, Divider, CircularProgress,
 } from "@mui/material";
@@ -28,10 +28,37 @@ import "../../styles/schedule.css";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const DAY_NAMES  = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-const DARK       = "#1a3a2e";
-const DARK_MID   = "rgba(26,58,46,.35)";
+const MONTH_ABBR  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTH_FULL  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY_NAMES   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const DARK        = "#1a3a2e";
+const DARK_MID    = "rgba(26,58,46,.35)";
+
+const getMonthGrid = (year, month) => {
+  const first = new Date(year, month, 1);
+  const dayOfWeek = first.getDay();
+  const startOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // days to go back to Monday
+  const gridStart = new Date(year, month, 1 - startOffset);
+  const dates = [];
+  const d = new Date(gridStart);
+  // always produce full weeks (rows of 7) until we pass the last day of the month
+  while (dates.length < 42) {
+    dates.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+    // stop at end of a complete week if we've passed the month
+    if (dates.length >= 28 && dates.length % 7 === 0 && d.getMonth() !== month) break;
+  }
+  return dates;
+};
+
+const formatMonthLabel = (date) => `${MONTH_FULL[date.getMonth()]} ${date.getFullYear()}`;
+
+const isTodayDate = (date) => {
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+};
+
+const isCurrentMonth = (date, year, month) => date.getMonth() === month && date.getFullYear() === year;
 
 const getMonday = (date) => {
   const d = new Date(date);
@@ -219,6 +246,52 @@ function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canEditShift
   );
 }
 
+// ─── MonthCell ───────────────────────────────────────────────────────────
+
+function MonthCell({ date, currentMonth, today, shiftCount, leaveByType, onClick }) {
+  const dimmed = !currentMonth;
+  const classes = [
+    "sched-month-cell",
+    dimmed && "sched-month-cell--dimmed",
+  ].filter(Boolean).join(" ");
+
+  return (
+    <Box className={classes} onClick={() => onClick(date)} role="button" tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick(date)}>
+      <Box className={today ? "sched-month-date sched-month-date--today" : "sched-month-date"}>
+        {date.getDate()}
+      </Box>
+      {shiftCount > 0 && (
+        <Box className="sched-month-badge">
+          {shiftCount} {shiftCount === 1 ? "shift" : "shifts"}
+        </Box>
+      )}
+      {(leaveByType.vacation > 0 || leaveByType.sick > 0 || leaveByType.personal > 0) && (
+        <Box className="sched-month-dots">
+          {leaveByType.vacation > 0 && (
+            <Box className="sched-month-dot-group">
+              <Box className="sched-month-dot" sx={{ bgcolor: "#ffb300" }} />
+              <span>{leaveByType.vacation}</span>
+            </Box>
+          )}
+          {leaveByType.sick > 0 && (
+            <Box className="sched-month-dot-group">
+              <Box className="sched-month-dot" sx={{ bgcolor: "#9c27b0" }} />
+              <span>{leaveByType.sick}</span>
+            </Box>
+          )}
+          {leaveByType.personal > 0 && (
+            <Box className="sched-month-dot-group">
+              <Box className="sched-month-dot" sx={{ bgcolor: "#43a047" }} />
+              <span>{leaveByType.personal}</span>
+            </Box>
+          )}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 // ─── SchedulePage ─────────────────────────────────────────────────────────────
 
 const CARD_SX = {
@@ -241,7 +314,9 @@ export default function SchedulePage() {
   const { user } = useAuth();
   const isPrivileged = user?.role === "manager" || user?.role === "owner";
 
+  const [viewMode,         setViewMode]         = React.useState("week");
   const [weekStart,        setWeekStart]        = React.useState(() => getMonday(new Date()));
+  const [monthAnchor,      setMonthAnchor]      = React.useState(() => new Date());
   const [shifts,           setShifts]           = React.useState([]);
   const [employees,        setEmployees]         = React.useState([]);
   const [tasks,            setTasks]            = React.useState([]);
@@ -256,35 +331,79 @@ export default function SchedulePage() {
   const days       = React.useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const visibleDays = showWeekends ? days : days.slice(0, 5);
 
+  // month view derived values
+  const monthYear  = monthAnchor.getFullYear();
+  const monthMonth = monthAnchor.getMonth();
+  const monthGridDates = React.useMemo(() => getMonthGrid(monthYear, monthMonth), [monthYear, monthMonth]);
+  const gridStart  = monthGridDates[0];
+  const gridEnd    = monthGridDates[monthGridDates.length - 1];
+
   // ── data load ──────────────────────────────────────────────────────────
+  const fetchFrom = viewMode === "week" ? toDateStr(weekStart) : toDateStr(gridStart);
+  const fetchTo   = viewMode === "week" ? toDateStr(weekEnd)   : toDateStr(gridEnd);
+  const leaveYear = viewMode === "week" ? weekStart.getFullYear() : monthYear;
+
   React.useEffect(() => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       try {
-        const [shiftsData, usersData, tasksData, leaveData] = await Promise.all([
-          getShifts({ from: toDateStr(weekStart), to: toDateStr(weekEnd) }),
+        const leavePromises = [getLeaveRequests({ status: "approved", year: leaveYear })];
+        // If grid spans two years (e.g. Dec-Jan), fetch leave for both years
+        if (viewMode === "month" && gridStart.getFullYear() !== gridEnd.getFullYear()) {
+          leavePromises.push(getLeaveRequests({ status: "approved", year: gridEnd.getFullYear() }));
+        }
+        const [shiftsData, usersData, tasksData, ...leaveResults] = await Promise.all([
+          getShifts({ from: fetchFrom, to: fetchTo }),
           getUsers(),
           getTasks(),
-          getLeaveRequests({ status: "approved", year: weekStart.getFullYear() }),
+          ...leavePromises,
         ]);
         if (!cancelled) {
           setShifts(shiftsData);
           setEmployees(usersData);
           setTasks(tasksData);
-          setApprovedLeave(leaveData);
+          // Merge and deduplicate leave from multiple years
+          const allLeave = leaveResults.flat();
+          const seen = new Set();
+          setApprovedLeave(allLeave.filter((lr) => {
+            const id = lr._id || lr.id;
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          }));
         }
       } catch (_) {}
       finally { if (!cancelled) setLoading(false); }
     };
     load();
     return () => { cancelled = true; };
-  }, [weekStart, weekEnd]);
+  }, [fetchFrom, fetchTo, leaveYear, viewMode]);
 
-  // ── week nav ───────────────────────────────────────────────────────────
-  const goToday = () => setWeekStart(getMonday(new Date()));
-  const goPrev  = () => setWeekStart((w) => addDays(w, -7));
-  const goNext  = () => setWeekStart((w) => addDays(w, 7));
+  // ── navigation ─────────────────────────────────────────────────────────
+  const goToday = () => {
+    if (viewMode === "week") setWeekStart(getMonday(new Date()));
+    else setMonthAnchor(new Date());
+  };
+  const goPrev = () => {
+    if (viewMode === "week") setWeekStart((w) => addDays(w, -7));
+    else setMonthAnchor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  };
+  const goNext = () => {
+    if (viewMode === "week") setWeekStart((w) => addDays(w, 7));
+    else setMonthAnchor((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+  };
+
+  const switchToWeek = () => setViewMode("week");
+  const switchToMonth = () => {
+    setMonthAnchor(new Date(weekStart.getFullYear(), weekStart.getMonth(), 1));
+    setViewMode("month");
+  };
+
+  const handleMonthDayClick = (date) => {
+    setWeekStart(getMonday(date));
+    setViewMode("week");
+  };
 
   const formatWeekRange = () => {
     const s = weekStart, e = weekEnd;
@@ -293,6 +412,9 @@ export default function SchedulePage() {
       ? `${sm} ${s.getDate()}, ${s.getFullYear()} - ${sm} ${e.getDate()}, ${e.getFullYear()}`
       : `${sm} ${s.getDate()}, ${s.getFullYear()} - ${em} ${e.getDate()}, ${e.getFullYear()}`;
   };
+
+  const headerLabel = viewMode === "week" ? formatWeekRange() : formatMonthLabel(monthAnchor);
+  const headerSub   = viewMode === "week" ? "Week View" : "Month View";
 
   // ── filtering ──────────────────────────────────────────────────────────
   const filteredShifts = React.useMemo(() => {
@@ -308,11 +430,17 @@ export default function SchedulePage() {
   };
 
   const leaveForDay = (date) => {
+    if (filterTaskId) return [];
     const ds = toDateStr(date);
     return approvedLeave.filter((lr) => {
       const start = lr.startDate?.slice(0, 10);
       const end   = lr.endDate?.slice(0, 10);
-      return start && end && start <= ds && ds <= end;
+      if (!start || !end || start > ds || ds > end) return false;
+      if (filterEmployeeId) {
+        const empId = lr.employee?._id || lr.employee?.id;
+        if (!isSameId(empId, filterEmployeeId)) return false;
+      }
+      return true;
     });
   };
 
@@ -322,11 +450,15 @@ export default function SchedulePage() {
   };
 
   // ── stats ──────────────────────────────────────────────────────────────
-  const visibleDateStrs = React.useMemo(() => new Set(visibleDays.map(toDateStr)), [visibleDays]);
+  const statsDateStrs = React.useMemo(() => {
+    if (viewMode === "week") return new Set(visibleDays.map(toDateStr));
+    // Month: only days within the actual month (exclude leading/trailing)
+    return new Set(monthGridDates.filter((d) => isCurrentMonth(d, monthYear, monthMonth)).map(toDateStr));
+  }, [viewMode, visibleDays, monthGridDates, monthYear, monthMonth]);
 
   const statsShifts = React.useMemo(
-    () => filteredShifts.filter((sh) => visibleDateStrs.has(sh.date?.slice(0, 10))),
-    [filteredShifts, visibleDateStrs]
+    () => filteredShifts.filter((sh) => statsDateStrs.has(sh.date?.slice(0, 10))),
+    [filteredShifts, statsDateStrs]
   );
 
   const totalEmployees = React.useMemo(
@@ -370,7 +502,9 @@ export default function SchedulePage() {
         {/* Page header */}
         <Box>
           <Typography sx={{ fontSize: 22, fontWeight: 800, color: "#0e2e25", mb: "4px" }}>Employee Schedule</Typography>
-          <Typography sx={{ fontSize: 12.5, color: "rgba(14,46,37,.65)" }}>Manage weekly work schedules</Typography>
+          <Typography sx={{ fontSize: 12.5, color: "rgba(14,46,37,.65)" }}>
+            {viewMode === "week" ? "Manage weekly work schedules" : "Monthly schedule overview"}
+          </Typography>
         </Box>
 
         {/* Week nav + filters card */}
@@ -380,12 +514,34 @@ export default function SchedulePage() {
             <Stack direction="row" alignItems="center" spacing={1.25}>
               <EventNoteOutlinedIcon sx={{ color: DARK, opacity: 0.7, fontSize: 22 }} />
               <Box>
-                <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#0e2e25" }}>{formatWeekRange()}</Typography>
-                <Typography sx={{ fontSize: 11.5, color: "rgba(14,46,37,.55)", mt: "1px" }}>Week View</Typography>
+                <Typography sx={{ fontSize: 15, fontWeight: 800, color: "#0e2e25" }}>{headerLabel}</Typography>
+                <Typography sx={{ fontSize: 11.5, color: "rgba(14,46,37,.55)", mt: "1px" }}>{headerSub}</Typography>
               </Box>
             </Stack>
             <Stack direction="row" alignItems="center" spacing={0.75}>
-              <IconButton size="small" onClick={goPrev} aria-label="Previous week"
+              {/* View toggle */}
+              <Box sx={{ display: "flex", border: "1px solid rgba(14,46,37,.2)", borderRadius: "6px", overflow: "hidden", mr: 0.5 }}>
+                <Button size="small" onClick={switchToWeek}
+                  sx={{
+                    borderRadius: 0, textTransform: "none", fontWeight: 700, fontSize: 12.5, px: 1.5, minWidth: 0,
+                    bgcolor: viewMode === "week" ? DARK : "transparent",
+                    color: viewMode === "week" ? "#fff" : "#0e2e25",
+                    "&:hover": { bgcolor: viewMode === "week" ? DARK : "rgba(26,58,46,.06)" },
+                  }}>
+                  Week
+                </Button>
+                <Button size="small" onClick={switchToMonth}
+                  sx={{
+                    borderRadius: 0, textTransform: "none", fontWeight: 700, fontSize: 12.5, px: 1.5, minWidth: 0,
+                    borderLeft: "1px solid rgba(14,46,37,.2)",
+                    bgcolor: viewMode === "month" ? DARK : "transparent",
+                    color: viewMode === "month" ? "#fff" : "#0e2e25",
+                    "&:hover": { bgcolor: viewMode === "month" ? DARK : "rgba(26,58,46,.06)" },
+                  }}>
+                  Month
+                </Button>
+              </Box>
+              <IconButton size="small" onClick={goPrev} aria-label={viewMode === "week" ? "Previous week" : "Previous month"}
                 sx={{ border: "1px solid rgba(14,46,37,.2)", borderRadius: "6px", color: "#0e2e25" }}>
                 <ChevronLeftIcon fontSize="small" />
               </IconButton>
@@ -393,10 +549,33 @@ export default function SchedulePage() {
                 sx={{ borderRadius: "6px", textTransform: "none", fontWeight: 700, borderColor: "rgba(14,46,37,.2)", color: "#0e2e25", px: 1.75 }}>
                 Today
               </Button>
-              <IconButton size="small" onClick={goNext} aria-label="Next week"
+              <IconButton size="small" onClick={goNext} aria-label={viewMode === "week" ? "Next week" : "Next month"}
                 sx={{ border: "1px solid rgba(14,46,37,.2)", borderRadius: "6px", color: "#0e2e25" }}>
                 <ChevronRightIcon fontSize="small" />
               </IconButton>
+              <TextField
+                type="date"
+                size="small"
+                value={viewMode === "week" ? toDateStr(weekStart) : toDateStr(monthAnchor)}
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const picked = new Date(e.target.value + "T00:00:00");
+                  if (viewMode === "week") setWeekStart(getMonday(picked));
+                  else setMonthAnchor(new Date(picked.getFullYear(), picked.getMonth(), 1));
+                }}
+                inputProps={{ "aria-label": viewMode === "week" ? "Jump to week containing date" : "Jump to month containing date" }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "6px",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#0e2e25",
+                    "& fieldset": { borderColor: "rgba(14,46,37,.2)" },
+                    "&:hover fieldset": { borderColor: "rgba(14,46,37,.4)" },
+                  },
+                  "& .MuiOutlinedInput-input": { py: "5px", px: "10px", cursor: "pointer" },
+                }}
+              />
             </Stack>
           </Stack>
 
@@ -443,15 +622,17 @@ export default function SchedulePage() {
               </FormControl>
             </Box>
 
-            {/* Weekends toggle */}
-            <FormControlLabel
-              control={
-                <Checkbox checked={showWeekends} onChange={(e) => setShowWeekends(e.target.checked)}
-                  size="small" sx={{ color: DARK, "&.Mui-checked": { color: DARK } }} />
-              }
-              label={<Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0e2e25" }}>Weekends</Typography>}
-              sx={{ mb: 0, mr: 0 }}
-            />
+            {/* Weekends toggle — week view only */}
+            {viewMode === "week" && (
+              <FormControlLabel
+                control={
+                  <Checkbox checked={showWeekends} onChange={(e) => setShowWeekends(e.target.checked)}
+                    size="small" sx={{ color: DARK, "&.Mui-checked": { color: DARK } }} />
+                }
+                label={<Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0e2e25" }}>Weekends</Typography>}
+                sx={{ mb: 0, mr: 0 }}
+              />
+            )}
           </Stack>
         </Paper>
 
@@ -461,7 +642,7 @@ export default function SchedulePage() {
             <Box sx={{ py: 8, display: "flex", justifyContent: "center" }}>
               <CircularProgress size={28} sx={{ color: DARK }} />
             </Box>
-          ) : (
+          ) : viewMode === "week" ? (
             <Box sx={{
               display: "grid",
               gridTemplateColumns: `repeat(${visibleDays.length}, 1fr)`,
@@ -480,6 +661,34 @@ export default function SchedulePage() {
                   onCardClick={openEdit}
                 />
               ))}
+            </Box>
+          ) : (
+            <Box className="sched-month-grid">
+              {/* Day-of-week headers */}
+              {DAY_NAMES.map((name) => (
+                <Box key={name} className="sched-month-header">{name}</Box>
+              ))}
+              {/* Month cells */}
+              {monthGridDates.map((date) => {
+                const ds = toDateStr(date);
+                const dayShifts = filteredShifts.filter((sh) => sh.date?.slice(0, 10) === ds);
+                const dayLeave = leaveForDay(date);
+                const leaveByType = { vacation: 0, sick: 0, personal: 0 };
+                dayLeave.forEach((lr) => {
+                  if (leaveByType[lr.type] !== undefined) leaveByType[lr.type]++;
+                });
+                return (
+                  <MonthCell
+                    key={ds}
+                    date={date}
+                    currentMonth={isCurrentMonth(date, monthYear, monthMonth)}
+                    today={isTodayDate(date)}
+                    shiftCount={dayShifts.length}
+                    leaveByType={leaveByType}
+                    onClick={handleMonthDayClick}
+                  />
+                );
+              })}
             </Box>
           )}
         </Paper>
