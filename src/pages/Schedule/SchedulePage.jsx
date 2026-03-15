@@ -17,6 +17,7 @@ import BeachAccessOutlinedIcon    from "@mui/icons-material/BeachAccessOutlined"
 import SickOutlinedIcon           from "@mui/icons-material/SickOutlined";
 import PersonOutlineOutlinedIcon  from "@mui/icons-material/PersonOutlineOutlined";
 
+import { useSearchParams }   from "react-router-dom";
 import { useAuth }           from "../../context/AuthContext";
 import { getShifts }         from "../../api/shifts";
 import { getTasks }          from "../../api/tasks";
@@ -313,10 +314,25 @@ const FILTER_LABEL_SX = {
 export default function SchedulePage() {
   const { user } = useAuth();
   const isPrivileged = user?.role === "manager" || user?.role === "owner";
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [viewMode,         setViewMode]         = React.useState("week");
-  const [weekStart,        setWeekStart]        = React.useState(() => getMonday(new Date()));
-  const [monthAnchor,      setMonthAnchor]      = React.useState(() => new Date());
+  const [weekStart,        setWeekStart]        = React.useState(() => {
+    const dateParam = searchParams.get("date");
+    if (dateParam) {
+      const parsed = new Date(dateParam + "T00:00:00");
+      if (!isNaN(parsed.getTime())) return getMonday(parsed);
+    }
+    return getMonday(new Date());
+  });
+  const [monthAnchor,      setMonthAnchor]      = React.useState(() => {
+    const dateParam = searchParams.get("date");
+    if (dateParam) {
+      const parsed = new Date(dateParam + "T00:00:00");
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return new Date();
+  });
   const [shifts,           setShifts]           = React.useState([]);
   const [employees,        setEmployees]         = React.useState([]);
   const [tasks,            setTasks]            = React.useState([]);
@@ -326,6 +342,18 @@ export default function SchedulePage() {
   const [filterTaskId,     setFilterTaskId]     = React.useState("");
   const [approvedLeave,    setApprovedLeave]    = React.useState([]);
   const [modal, setModal] = React.useState({ open: false, date: null, shift: null });
+
+  // Sync week/month to ?date= param when it changes (e.g. from notification click)
+  const lastAppliedDate = React.useRef(null);
+  React.useEffect(() => {
+    const dateParam = searchParams.get("date");
+    if (!dateParam || dateParam === lastAppliedDate.current) return;
+    const parsed = new Date(dateParam + "T00:00:00");
+    if (isNaN(parsed.getTime())) return;
+    lastAppliedDate.current = dateParam;
+    setWeekStart(getMonday(parsed));
+    setMonthAnchor(parsed);
+  }, [searchParams]);
 
   const weekEnd    = React.useMemo(() => addDays(weekStart, 6), [weekStart]);
   const days       = React.useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
