@@ -44,6 +44,8 @@ export default function EmployeesPage() {
   const [inviteFirstName, setInviteFirstName] = React.useState("");
   const [inviteLastName,  setInviteLastName]  = React.useState("");
   const [inviteEmail,     setInviteEmail]     = React.useState("");
+  const [invitePayType,   setInvitePayType]   = React.useState("hourly");
+  const [inviteRate,      setInviteRate]      = React.useState("");
   const [inviteSaving,    setInviteSaving]    = React.useState(false);
   const [inviteError,     setInviteError]     = React.useState("");
   const [snack,        setSnack]        = React.useState({ open: false, msg: "", severity: "success" });
@@ -67,12 +69,16 @@ export default function EmployeesPage() {
     if (!inviteFirstName.trim()) { setInviteError("First name is required"); return; }
     if (!inviteLastName.trim())  { setInviteError("Last name is required"); return; }
     if (!inviteEmail.trim())     { setInviteError("Email is required"); return; }
+    if (!inviteRate || Number(inviteRate) <= 0) { setInviteError(invitePayType === "hourly" ? "Hourly rate is required" : "Annual salary is required"); return; }
     setInviteSaving(true);
     try {
       await inviteUser({
         firstName: inviteFirstName.trim(),
         lastName:  inviteLastName.trim(),
         email:     inviteEmail.trim(),
+        payType:   invitePayType,
+        hourlyRate: invitePayType === "hourly" ? Number(inviteRate) : 0,
+        salaryRate: invitePayType === "salary" ? Number(inviteRate) : 0,
       });
       closeInviteDialog();
       setSnack({ open: true, msg: "Invitation sent successfully!", severity: "success" });
@@ -99,6 +105,8 @@ export default function EmployeesPage() {
     setInviteFirstName("");
     setInviteLastName("");
     setInviteEmail("");
+    setInvitePayType("hourly");
+    setInviteRate("");
     setInviteError("");
   };
 
@@ -314,12 +322,42 @@ export default function EmployeesPage() {
               fullWidth size="small" placeholder="jane.doe@example.com" type="email"
               value={inviteEmail}
               onChange={(e) => { setInviteEmail(e.target.value); setInviteError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-              error={!!inviteError}
-              helperText={inviteError || " "}
               sx={FIELD_SX}
             />
           </Box>
+
+          <Stack direction="row" spacing={1.5}>
+            <Box flex={1}>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: .5 }}>
+                Pay Type
+              </Typography>
+              <Select
+                fullWidth size="small"
+                value={invitePayType}
+                onChange={(e) => { setInvitePayType(e.target.value); setInviteRate(""); setInviteError(""); }}
+                sx={{ bgcolor: "#fff", borderRadius: "6px", "& fieldset": { borderColor: "rgba(14,46,37,.18)" }, "&:hover fieldset": { borderColor: BRAND }, "&.Mui-focused fieldset": { borderColor: BRAND } }}
+              >
+                <MenuItem value="hourly">Hourly</MenuItem>
+                <MenuItem value="salary">Salary</MenuItem>
+              </Select>
+            </Box>
+            <Box flex={1}>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: .5 }}>
+                {invitePayType === "hourly" ? "Hourly Rate ($)" : "Annual Salary ($)"}
+              </Typography>
+              <TextField
+                fullWidth size="small" type="number"
+                placeholder={invitePayType === "hourly" ? "25.00" : "55000"}
+                value={inviteRate}
+                onChange={(e) => { setInviteRate(e.target.value); setInviteError(""); }}
+                onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                error={!!inviteError}
+                helperText={inviteError || " "}
+                inputProps={{ min: 0, step: invitePayType === "hourly" ? "0.01" : "1000" }}
+                sx={FIELD_SX}
+              />
+            </Box>
+          </Stack>
         </DialogContent>
 
         <Divider sx={{ borderColor: "rgba(14,46,37,.1)" }} />
