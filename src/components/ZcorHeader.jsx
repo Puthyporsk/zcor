@@ -33,6 +33,7 @@ import ReceiptLongOutlinedIcon from "@mui/icons-material/ReceiptLongOutlined";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
+import NotificationBell from "./NotificationBell";
 
 const HEADER_OFFSET = 88; // fixed header offset for smooth scroll
 
@@ -56,6 +57,7 @@ export default function ZcorHeader() {
 
   const { isLoggedIn, logout, user } = useAuth();
   const isManagerOrOwner = user?.role === "manager" || user?.role === "owner";
+  const isLandingPage = location.pathname === "/";
 
   const navItems = [
     { label: "Features", id: "features" },
@@ -211,6 +213,7 @@ export default function ZcorHeader() {
               </Button>
             </Box>
             }
+            {isLoggedIn && !isLandingPage && <NotificationBell />}
             <Tooltip title="Menu">
               <IconButton
                 onClick={openAppsMenu}
@@ -291,6 +294,7 @@ export default function ZcorHeader() {
         {/* Mobile actions */}
         {isMobile && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {isLoggedIn && !isLandingPage && <NotificationBell />}
             {/* Mobile drawer button */}
             <IconButton
               onClick={() => setDrawerOpen(true)}
