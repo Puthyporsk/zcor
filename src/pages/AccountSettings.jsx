@@ -33,6 +33,7 @@ import PasswordOutlinedIcon from '@mui/icons-material/PasswordOutlined';
 import ZcorAllRightsReserved from "../components/ZcorAllRightsReserved";
 
 import { useAuth } from "../context/AuthContext";
+import { API_BASE } from "../api/api.js";
 import { updateMe, uploadAvatar } from "../api/user.js";
 
 // Simple deep compare for dirty state
@@ -167,7 +168,7 @@ export default function AccountSettings() {
             setForm(mapped);
 
             try {
-            const res = await fetch("/api/user/me/avatar", {
+            const res = await fetch(`${API_BASE}/api/user/me/avatar`, {
                 method: "GET",
                 credentials: "include",
             });
