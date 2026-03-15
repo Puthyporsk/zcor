@@ -5,7 +5,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
   Snackbar, Alert, CircularProgress, Stack, Divider, IconButton,
   ToggleButton, ToggleButtonGroup, InputAdornment, FormControl,
-  InputLabel, Tabs, Tab,
+  InputLabel,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -22,7 +22,7 @@ import {
   deleteInventoryItem, assignItem, unassignItem,
 } from "../api/inventory";
 import {
-  getInventoryOrders, createInventoryOrder, deleteInventoryOrder, getOrdersByItem,
+  createInventoryOrder, getInventoryOrders, getOrdersByItem,
 } from "../api/inventoryOrders";
 import { getUsers } from "../api/user";
 import ZcorAllRightsReserved from "../components/ZcorAllRightsReserved";
@@ -68,10 +68,9 @@ export default function InventoryPage() {
   const { user } = useAuth();
   const isManagerOrOwner = user?.role === "owner" || user?.role === "manager";
 
-  const [tab, setTab] = React.useState(0); // 0 = Items, 1 = Transactions
-
   // ── Items state ──
   const [items, setItems] = React.useState([]);
+  const [allItems, setAllItems] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [typeFilter, setTypeFilter] = React.useState("all");
   const [categoryFilter, setCategoryFilter] = React.useState("");
@@ -84,6 +83,8 @@ export default function InventoryPage() {
   const [form, setForm] = React.useState({});
   const [saving, setSaving] = React.useState(false);
   const [formError, setFormError] = React.useState("");
+  const [addingCategory, setAddingCategory] = React.useState(false);
+  const [newCategory, setNewCategory] = React.useState("");
 
   // Assign dialog
   const [assignOpen, setAssignOpen] = React.useState(false);
@@ -91,11 +92,6 @@ export default function InventoryPage() {
   const [assignUserId, setAssignUserId] = React.useState("");
   const [employees, setEmployees] = React.useState([]);
   const [assignSaving, setAssignSaving] = React.useState(false);
-
-  // ── Transactions state ──
-  const [orders, setOrders] = React.useState([]);
-  const [ordersLoading, setOrdersLoading] = React.useState(false);
-  const [orderTypeFilter, setOrderTypeFilter] = React.useState("all");
 
   // New Order dialog
   const [orderDialogOpen, setOrderDialogOpen] = React.useState(false);
@@ -107,11 +103,21 @@ export default function InventoryPage() {
   const [orderFormError, setOrderFormError] = React.useState("");
   const [supplyItems, setSupplyItems] = React.useState([]);
   const [allUsers, setAllUsers] = React.useState([]);
+  const [vendors, setVendors] = React.useState([]);
+  const [addingVendor, setAddingVendor] = React.useState(false);
+  const [newVendor, setNewVendor] = React.useState("");
 
   // Confirm dialog
   const [confirmDialog, setConfirmDialog] = React.useState({ open: false, title: "", body: "", onConfirm: null });
   const openConfirm = (title, body, onConfirm) => setConfirmDialog({ open: true, title, body, onConfirm });
   const closeConfirm = () => setConfirmDialog((d) => ({ ...d, open: false, onConfirm: null }));
+
+  // Restock dialog
+  const [restockOpen, setRestockOpen] = React.useState(false);
+  const [restockItem, setRestockItem] = React.useState(null);
+  const [restockForm, setRestockForm] = React.useState({ quantity: 1, unitPrice: "", vendor: "" });
+  const [restockSaving, setRestockSaving] = React.useState(false);
+  const [restockError, setRestockError] = React.useState("");
 
   // Per-item history dialog
   const [historyOpen, setHistoryOpen] = React.useState(false);
@@ -126,8 +132,12 @@ export default function InventoryPage() {
       const params = {};
       if (typeFilter !== "all") params.type = typeFilter;
       if (categoryFilter) params.category = categoryFilter;
-      const data = await getInventory(params);
+      const [data, all] = await Promise.all([
+        getInventory(params),
+        getInventory(),
+      ]);
       setItems(data);
+      setAllItems(all);
     } catch (err) {
       setSnack({ open: true, msg: err.message || "Failed to load inventory", severity: "error" });
     } finally {
@@ -137,30 +147,20 @@ export default function InventoryPage() {
 
   React.useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  // ── Fetch orders ──
-  const fetchOrders = React.useCallback(async () => {
-    setOrdersLoading(true);
-    try {
-      const params = {};
-      if (orderTypeFilter !== "all") params.orderType = orderTypeFilter;
-      const data = await getInventoryOrders(params);
-      setOrders(data);
-    } catch (err) {
-      setSnack({ open: true, msg: err.message || "Failed to load orders", severity: "error" });
-    } finally {
-      setOrdersLoading(false);
-    }
-  }, [orderTypeFilter]);
-
-  React.useEffect(() => {
-    if (tab === 1) fetchOrders();
-  }, [tab, fetchOrders]);
-
+  // Categories for the filter dropdown (scoped to current typeFilter)
   const categories = React.useMemo(() => {
     const cats = new Set();
     items.forEach((i) => { if (i.category) cats.add(i.category); });
     return [...cats].sort();
   }, [items]);
+
+  // Categories for the item dialog (scoped to the type selected in the form)
+  const formType = editing ? editing.type : form.type;
+  const dialogCategories = React.useMemo(() => {
+    const cats = new Set();
+    allItems.forEach((i) => { if (i.category && i.type === formType) cats.add(i.category); });
+    return [...cats].sort();
+  }, [allItems, formType]);
 
   const filtered = React.useMemo(() => {
     if (!search.trim()) return items;
@@ -197,7 +197,7 @@ export default function InventoryPage() {
     setDialogOpen(true);
   };
 
-  const closeDialog = () => { setDialogOpen(false); setEditing(null); setFormError(""); };
+  const closeDialog = () => { setDialogOpen(false); setEditing(null); setFormError(""); setAddingCategory(false); setNewCategory(""); };
 
   const handleSave = async () => {
     setFormError("");
@@ -268,6 +268,38 @@ export default function InventoryPage() {
     }
   };
 
+  // ── Restock ──
+  const openRestock = (item) => {
+    setRestockItem(item);
+    setRestockForm({ quantity: 1, unitPrice: "", vendor: "" });
+    setRestockError("");
+    setRestockOpen(true);
+  };
+
+  const closeRestock = () => { setRestockOpen(false); setRestockItem(null); setRestockError(""); };
+
+  const handleRestock = async () => {
+    setRestockError("");
+    const qty = Number(restockForm.quantity);
+    if (!qty || qty < 1) { setRestockError("Quantity must be at least 1"); return; }
+    setRestockSaving(true);
+    try {
+      await createInventoryOrder({
+        orderType: "purchase",
+        vendor: restockForm.vendor.trim() || "Restock",
+        orderDate: new Date().toISOString().slice(0, 10),
+        items: [{ inventoryItem: restockItem.id, quantity: qty, unitPrice: Number(restockForm.unitPrice) || 0 }],
+      });
+      setSnack({ open: true, msg: `Restocked ${qty} ${restockItem.unit} of ${restockItem.name}`, severity: "success" });
+      closeRestock();
+      fetchItems();
+    } catch (err) {
+      setRestockError(err.message || "Failed to restock");
+    } finally {
+      setRestockSaving(false);
+    }
+  };
+
   // ── Assign / Unassign ──
   const openAssignDialog = async (itemId) => {
     setAssignItemId(itemId);
@@ -308,15 +340,24 @@ export default function InventoryPage() {
   const openOrderDialog = async () => {
     setOrderFormError("");
     setOrderForm({ orderType: "purchase", orderDate: "", vendor: "", relatedUser: "", notes: "", lines: [EMPTY_LINE()] });
+    setAddingVendor(false);
+    setNewVendor("");
     setOrderDialogOpen(true);
     try {
-      const [supplies, users] = await Promise.all([getInventory({ type: "supply" }), getUsers()]);
+      const [supplies, users, orders] = await Promise.all([
+        getInventory({ type: "supply" }),
+        getUsers(),
+        getInventoryOrders({ orderType: "purchase" }),
+      ]);
       setSupplyItems(supplies);
       setAllUsers(users);
+      const vendorSet = new Set();
+      orders.forEach((o) => { if (o.vendor?.trim()) vendorSet.add(o.vendor.trim()); });
+      setVendors([...vendorSet].sort());
     } catch { /* ignore */ }
   };
 
-  const closeOrderDialog = () => { setOrderDialogOpen(false); setOrderFormError(""); };
+  const closeOrderDialog = () => { setOrderDialogOpen(false); setOrderFormError(""); setAddingVendor(false); setNewVendor(""); };
 
   const setOrderField = (k, v) => setOrderForm((f) => ({ ...f, [k]: v }));
 
@@ -375,30 +416,11 @@ export default function InventoryPage() {
       setSnack({ open: true, msg: "Order created", severity: "success" });
       closeOrderDialog();
       fetchItems();
-      if (tab === 1) fetchOrders();
     } catch (err) {
       setOrderFormError(err.message || "Failed to create order");
     } finally {
       setOrderSaving(false);
     }
-  };
-
-  // ── Delete order ──
-  const handleDeleteOrder = (id) => {
-    openConfirm(
-      "Void order",
-      "This will reverse all quantity adjustments from this order. This action cannot be undone.",
-      async () => {
-        try {
-          await deleteInventoryOrder(id);
-          setSnack({ open: true, msg: "Order voided", severity: "success" });
-          fetchOrders();
-          fetchItems();
-        } catch (err) {
-          setSnack({ open: true, msg: err.message || "Failed to void order", severity: "error" });
-        }
-      }
-    );
   };
 
   // ── Per-item history ──
@@ -433,47 +455,26 @@ export default function InventoryPage() {
               Track equipment, supplies, and transactions
             </Typography>
           </Box>
-          {isManagerOrOwner && tab === 0 && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => openAddDialog(typeFilter === "supply" ? "supply" : "equipment")}
-              sx={{ bgcolor: BRAND, color: "#fff", borderRadius: "8px", textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#1a4a37" } }}
-            >
-              Add Item
-            </Button>
-          )}
-          {isManagerOrOwner && tab === 1 && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={openOrderDialog}
-              sx={{ bgcolor: BRAND, color: "#fff", borderRadius: "8px", textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#1a4a37" } }}
-            >
-              New Order
-            </Button>
+          {isManagerOrOwner && (
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => openAddDialog(typeFilter === "supply" ? "supply" : "equipment")}
+                sx={{ bgcolor: BRAND, color: "#fff", borderRadius: "8px", textTransform: "none", fontWeight: 700, "&:hover": { bgcolor: "#1a4a37" } }}
+              >
+                Add Item
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={openOrderDialog}
+                sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 700, borderColor: "rgba(14,46,37,.2)", color: BRAND, "&:hover": { borderColor: BRAND, bgcolor: BRAND_LIGHT } }}
+              >
+                New Order
+              </Button>
+            </Stack>
           )}
         </Stack>
-
-        {/* Tabs */}
-        <Box sx={{ borderBottom: "1px solid rgba(14,46,37,.1)" }}>
-          <Tabs
-            value={tab}
-            onChange={(_, v) => setTab(v)}
-            sx={{
-              "& .MuiTab-root": { textTransform: "none", fontWeight: 600, fontSize: 13.5, color: "rgba(14,46,37,.5)", minHeight: 40 },
-              "& .Mui-selected": { color: BRAND },
-              "& .MuiTabs-indicator": { bgcolor: BRAND },
-            }}
-          >
-            <Tab label="Items" />
-            <Tab label="Transactions" />
-          </Tabs>
-        </Box>
-
-        {/* ══════════════ ITEMS TAB ══════════════ */}
-        {tab === 0 && (
-          <>
             {/* Filters */}
             <Stack direction="row" flexWrap="wrap" gap={1.5} alignItems="center">
               <ToggleButtonGroup
@@ -593,11 +594,19 @@ export default function InventoryPage() {
                                 <Stack direction="row" alignItems="center" spacing={0.5}>
                                   <Typography sx={{ fontSize: 13, fontWeight: 600, color: BRAND }}>{item.quantity}</Typography>
                                   {isManagerOrOwner && (
-                                    <IconButton size="small" onClick={() => handleDecrease(item)}
-                                      disabled={item.quantity <= 0}
-                                      sx={{ color: "rgba(14,46,37,.4)", "&:hover": { color: "#dc2626" }, width: 22, height: 22 }}>
-                                      <RemoveIcon sx={{ fontSize: 15 }} />
-                                    </IconButton>
+                                    <>
+                                      <IconButton size="small" onClick={() => openRestock(item)}
+                                        sx={{ color: "rgba(14,46,37,.4)", "&:hover": { color: "#15803d" }, width: 22, height: 22 }}
+                                        title="Restock">
+                                        <AddIcon sx={{ fontSize: 15 }} />
+                                      </IconButton>
+                                      <IconButton size="small" onClick={() => handleDecrease(item)}
+                                        disabled={item.quantity <= 0}
+                                        sx={{ color: "rgba(14,46,37,.4)", "&:hover": { color: "#dc2626" }, width: 22, height: 22 }}
+                                        title="Use 1">
+                                        <RemoveIcon sx={{ fontSize: 15 }} />
+                                      </IconButton>
+                                    </>
                                   )}
                                 </Stack>
                               </TableCell>
@@ -660,93 +669,6 @@ export default function InventoryPage() {
                 </TableContainer>
               )}
             </Paper>
-          </>
-        )}
-
-        {/* ══════════════ TRANSACTIONS TAB ══════════════ */}
-        {tab === 1 && (
-          <>
-            {/* Type filter */}
-            <Stack direction="row" gap={1.5} alignItems="center">
-              <ToggleButtonGroup
-                value={orderTypeFilter} exclusive
-                onChange={(_, v) => { if (v) setOrderTypeFilter(v); }}
-                size="small"
-                sx={{ "& .MuiToggleButton-root": {
-                  textTransform: "none", fontWeight: 600, fontSize: 12.5,
-                  borderColor: "rgba(14,46,37,.18)", color: "rgba(14,46,37,.6)",
-                  "&.Mui-selected": { bgcolor: BRAND, color: "#fff", "&:hover": { bgcolor: "#1a4a37" } },
-                }}}
-              >
-                <ToggleButton value="all">All</ToggleButton>
-                <ToggleButton value="purchase">Purchases</ToggleButton>
-                <ToggleButton value="sale">Sales</ToggleButton>
-                <ToggleButton value="usage">Usage</ToggleButton>
-              </ToggleButtonGroup>
-            </Stack>
-
-            <Paper elevation={0} sx={{ borderRadius: "10px", border: "1px solid rgba(16,24,40,.06)", overflow: "hidden" }}>
-              {ordersLoading ? (
-                <Box sx={{ py: 8, display: "flex", justifyContent: "center" }}>
-                  <CircularProgress size={28} sx={{ color: BRAND }} />
-                </Box>
-              ) : orders.length === 0 ? (
-                <Box sx={{ py: 8, textAlign: "center" }}>
-                  <Typography sx={{ color: "rgba(14,46,37,.45)", fontSize: 14 }}>No transactions found.</Typography>
-                </Box>
-              ) : (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: BRAND_LIGHT }}>
-                        {["Date", "Type", "Vendor / User", "Items", "Total", ...(isManagerOrOwner ? ["Actions"] : [])].map((h) => (
-                          <TableCell key={h} sx={{ fontSize: 11, fontWeight: 700, color: "rgba(14,46,37,.6)", textTransform: "uppercase", letterSpacing: ".04em", py: 1.25, borderBottom: "1px solid rgba(16,24,40,.07)" }}>
-                            {h}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {orders.map((order) => {
-                        const tc = ORDER_TYPE_CHIP[order.orderType] || ORDER_TYPE_CHIP.usage;
-                        const vendorUser = order.orderType === "purchase"
-                          ? (order.vendor || "—")
-                          : order.relatedUser
-                            ? `${order.relatedUser.firstName} ${order.relatedUser.lastName}`
-                            : "—";
-                        return (
-                          <TableRow key={order.id} sx={{ "&:last-child td": { border: 0 }, "&:hover": { bgcolor: "rgba(14,46,37,.025)" } }}>
-                            <TableCell sx={{ fontSize: 13, color: "rgba(14,46,37,.7)", py: 1.5 }}>{formatDate(order.orderDate)}</TableCell>
-                            <TableCell sx={{ py: 1.5 }}>
-                              <Chip label={tc.label} size="small" sx={{ bgcolor: tc.bgcolor, color: tc.color, fontWeight: 700, fontSize: 11, borderRadius: "6px", height: 22 }} />
-                            </TableCell>
-                            <TableCell sx={{ fontSize: 13, color: "rgba(14,46,37,.7)", py: 1.5 }}>{vendorUser}</TableCell>
-                            <TableCell sx={{ fontSize: 13, color: "rgba(14,46,37,.7)", py: 1.5 }}>
-                              {order.items.length} item{order.items.length !== 1 ? "s" : ""}
-                              <Typography sx={{ fontSize: 11, color: "rgba(14,46,37,.45)", mt: 0.25 }}>
-                                {order.items.map((li) => `${li.itemName} ×${li.quantity}`).join(", ")}
-                              </Typography>
-                            </TableCell>
-                            <TableCell sx={{ fontSize: 13, fontWeight: 600, color: BRAND, py: 1.5 }}>
-                              {order.orderType === "usage" ? "—" : formatCurrency(order.total)}
-                            </TableCell>
-                            {isManagerOrOwner && (
-                              <TableCell sx={{ py: 1.5 }}>
-                                <IconButton size="small" onClick={() => handleDeleteOrder(order.id)} sx={{ color: "rgba(14,46,37,.4)", "&:hover": { color: "#dc2626" } }}>
-                                  <DeleteOutlineIcon sx={{ fontSize: 17 }} />
-                                </IconButton>
-                              </TableCell>
-                            )}
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </Paper>
-          </>
-        )}
 
         <ZcorAllRightsReserved />
       </Box>
@@ -776,7 +698,39 @@ export default function InventoryPage() {
           </Box>
           <Box>
             <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: .5 }}>Category</Typography>
-            <TextField fullWidth size="small" placeholder="e.g. PPE, IT, Cleaning" value={form.category || ""} onChange={(e) => setField("category", e.target.value)} sx={FIELD_SX} />
+            {addingCategory ? (
+              <Stack direction="row" spacing={1}>
+                <TextField fullWidth size="small" autoFocus placeholder="New category name" value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newCategory.trim()) { setField("category", newCategory.trim()); setAddingCategory(false); setNewCategory(""); }
+                    if (e.key === "Escape") { setAddingCategory(false); setNewCategory(""); }
+                  }}
+                  sx={FIELD_SX} />
+                <Button size="small" variant="contained" disabled={!newCategory.trim()}
+                  onClick={() => { setField("category", newCategory.trim()); setAddingCategory(false); setNewCategory(""); }}
+                  sx={{ minWidth: 0, px: 2, textTransform: "none", borderRadius: "6px", fontSize: 13, fontWeight: 700, bgcolor: BRAND, "&:hover": { bgcolor: "#1a4a37" } }}>
+                  Add
+                </Button>
+                <Button size="small" variant="outlined"
+                  onClick={() => { setAddingCategory(false); setNewCategory(""); }}
+                  sx={{ minWidth: 0, px: 1.5, textTransform: "none", borderRadius: "6px", fontSize: 13, borderColor: "rgba(14,46,37,.2)", color: BRAND }}>
+                  Cancel
+                </Button>
+              </Stack>
+            ) : (
+              <Select fullWidth size="small" value={form.category || ""} displayEmpty
+                onChange={(e) => {
+                  if (e.target.value === "__add__") { setAddingCategory(true); }
+                  else setField("category", e.target.value);
+                }}
+                sx={{ fontSize: 13, bgcolor: "#fff", borderRadius: "6px", "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(14,46,37,.18)" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: BRAND } }}>
+                <MenuItem value="" sx={{ fontSize: 13, color: "rgba(14,46,37,.45)" }}>No category</MenuItem>
+                {dialogCategories.map((c) => <MenuItem key={c} value={c} sx={{ fontSize: 13 }}>{c}</MenuItem>)}
+                <Divider sx={{ my: 0.5 }} />
+                <MenuItem value="__add__" sx={{ fontSize: 13, color: BRAND, fontWeight: 700 }}>+ Add new category…</MenuItem>
+              </Select>
+            )}
           </Box>
           <Box>
             <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: .5 }}>Description</Typography>
@@ -869,6 +823,68 @@ export default function InventoryPage() {
         </DialogActions>
       </Dialog>
 
+      {/* ── Restock Dialog ── */}
+      <Dialog open={restockOpen} onClose={closeRestock} fullWidth maxWidth="xs"
+        slotProps={{ paper: { sx: { borderRadius: "10px", border: "1px solid rgba(14,46,37,.12)" } } }}>
+        <DialogTitle sx={{ pb: 0.5, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box>
+            <Typography sx={{ fontWeight: 700, fontSize: 17, color: BRAND }}>Restock Item</Typography>
+            {restockItem && <Typography sx={{ fontSize: 12.5, color: "rgba(14,46,37,.55)", mt: 0.25 }}>{restockItem.name}</Typography>}
+          </Box>
+          <IconButton size="small" onClick={closeRestock} sx={{ mt: -0.5, mr: -0.5 }}><CloseIcon fontSize="small" /></IconButton>
+        </DialogTitle>
+        <Divider sx={{ mt: 1, borderColor: "rgba(14,46,37,.1)" }} />
+        <DialogContent sx={{ pt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+          {restockItem && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip label={`Current: ${restockItem.quantity} ${restockItem.unit}`} size="small"
+                sx={{ bgcolor: BRAND_LIGHT, color: BRAND, fontWeight: 700, fontSize: 12, borderRadius: "6px", height: 24 }} />
+              {restockItem.lowStockThreshold > 0 && restockItem.quantity <= restockItem.lowStockThreshold && (
+                <Chip label="Low Stock" size="small" sx={{ bgcolor: "rgba(220,38,38,0.12)", color: "#dc2626", fontWeight: 700, fontSize: 11, borderRadius: "6px", height: 22 }} />
+              )}
+            </Stack>
+          )}
+          <Stack direction="row" spacing={1.5}>
+            <Box flex={1}>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: .5 }}>Quantity</Typography>
+              <TextField fullWidth size="small" type="number" autoFocus value={restockForm.quantity}
+                onChange={(e) => setRestockForm((f) => ({ ...f, quantity: e.target.value }))}
+                slotProps={{ htmlInput: { min: 1 } }} sx={FIELD_SX} />
+            </Box>
+            <Box flex={1}>
+              <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: .5 }}>Cost / Unit</Typography>
+              <TextField fullWidth size="small" type="number" placeholder="0.00" value={restockForm.unitPrice}
+                onChange={(e) => setRestockForm((f) => ({ ...f, unitPrice: e.target.value }))}
+                slotProps={{ htmlInput: { min: 0, step: "0.01" } }} sx={FIELD_SX} />
+            </Box>
+          </Stack>
+          <Box>
+            <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: .5 }}>Vendor (optional)</Typography>
+            <TextField fullWidth size="small" placeholder="Supplier name" value={restockForm.vendor}
+              onChange={(e) => setRestockForm((f) => ({ ...f, vendor: e.target.value }))} sx={FIELD_SX} />
+          </Box>
+          {Number(restockForm.unitPrice) > 0 && Number(restockForm.quantity) >= 1 && (
+            <Stack direction="row" justifyContent="flex-end">
+              <Typography sx={{ fontSize: 13, fontWeight: 700, color: BRAND }}>
+                Total: {formatCurrency(Number(restockForm.quantity) * Number(restockForm.unitPrice))}
+              </Typography>
+            </Stack>
+          )}
+          {restockError && <Typography sx={{ color: "#dc2626", fontSize: 12.5, mt: -0.5 }}>{restockError}</Typography>}
+        </DialogContent>
+        <Divider sx={{ borderColor: "rgba(14,46,37,.1)" }} />
+        <DialogActions sx={{ px: 3, py: 1.5, gap: 1 }}>
+          <Button variant="outlined" size="small" onClick={closeRestock}
+            sx={{ textTransform: "none", borderRadius: "6px", fontSize: 13, borderColor: "rgba(14,46,37,.2)", color: BRAND, "&:hover": { borderColor: BRAND, bgcolor: BRAND_LIGHT } }}>
+            Cancel
+          </Button>
+          <Button variant="contained" size="small" onClick={handleRestock} disabled={restockSaving}
+            sx={{ textTransform: "none", borderRadius: "6px", fontSize: 13, bgcolor: BRAND, color: "#fff", "&:hover": { bgcolor: "#1a4a37" }, "&.Mui-disabled": { bgcolor: "rgba(14,46,37,.25)", color: "#fff" } }}>
+            {restockSaving ? "Restocking…" : "Restock"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* ── New Order Dialog ── */}
       <Dialog open={orderDialogOpen} onClose={closeOrderDialog} fullWidth maxWidth="sm"
         slotProps={{ paper: { sx: { borderRadius: "10px", border: "1px solid rgba(14,46,37,.12)" } } }}>
@@ -899,7 +915,39 @@ export default function InventoryPage() {
           {orderForm.orderType === "purchase" && (
             <Box>
               <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: .5 }}>Vendor</Typography>
-              <TextField fullWidth size="small" placeholder="Vendor name" value={orderForm.vendor} onChange={(e) => setOrderField("vendor", e.target.value)} sx={FIELD_SX} />
+              {addingVendor ? (
+                <Stack direction="row" spacing={1}>
+                  <TextField fullWidth size="small" autoFocus placeholder="New vendor name" value={newVendor}
+                    onChange={(e) => setNewVendor(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newVendor.trim()) { setOrderField("vendor", newVendor.trim()); setAddingVendor(false); setNewVendor(""); }
+                      if (e.key === "Escape") { setAddingVendor(false); setNewVendor(""); }
+                    }}
+                    sx={FIELD_SX} />
+                  <Button size="small" variant="contained" disabled={!newVendor.trim()}
+                    onClick={() => { setOrderField("vendor", newVendor.trim()); setAddingVendor(false); setNewVendor(""); }}
+                    sx={{ minWidth: 0, px: 2, textTransform: "none", borderRadius: "6px", fontSize: 13, fontWeight: 700, bgcolor: BRAND, "&:hover": { bgcolor: "#1a4a37" } }}>
+                    Add
+                  </Button>
+                  <Button size="small" variant="outlined"
+                    onClick={() => { setAddingVendor(false); setNewVendor(""); }}
+                    sx={{ minWidth: 0, px: 1.5, textTransform: "none", borderRadius: "6px", fontSize: 13, borderColor: "rgba(14,46,37,.2)", color: BRAND }}>
+                    Cancel
+                  </Button>
+                </Stack>
+              ) : (
+                <Select fullWidth size="small" value={orderForm.vendor} displayEmpty
+                  onChange={(e) => {
+                    if (e.target.value === "__add__") { setAddingVendor(true); }
+                    else setOrderField("vendor", e.target.value);
+                  }}
+                  sx={{ fontSize: 13, bgcolor: "#fff", borderRadius: "6px", "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(14,46,37,.18)" }, "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: BRAND } }}>
+                  <MenuItem value="" disabled sx={{ fontSize: 13, color: "rgba(14,46,37,.45)" }}>Select vendor</MenuItem>
+                  {vendors.map((v) => <MenuItem key={v} value={v} sx={{ fontSize: 13 }}>{v}</MenuItem>)}
+                  <Divider sx={{ my: 0.5 }} />
+                  <MenuItem value="__add__" sx={{ fontSize: 13, color: BRAND, fontWeight: 700 }}>+ Add new vendor…</MenuItem>
+                </Select>
+              )}
             </Box>
           )}
 
