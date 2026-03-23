@@ -106,25 +106,40 @@ const emptyForm = () => ({
 
 // ─── Balance card ────────────────────────────────────────────────────────────
 
-function BalanceCard({ type, balances }) {
+const MODE_LABEL = {
+  front_loaded: "Front-loaded",
+  accrual_only: "Accrual",
+  hybrid:       "Hybrid",
+};
+
+function BalanceCard({ type, balances, policy }) {
   const b = balances.find((x) => x.type === type);
   const allocated  = b?.allocated  ?? 0;
   const used       = b?.used       ?? 0;
   const pending    = b?.pending    ?? 0;
   const carriedOver = b?.carriedOver ?? 0;
+  const mode = policy?.availabilityMode || "accrual_only";
+
+  // For front-loaded, show full annual allocation; for others, show accrued
   const remaining  = Math.max(0, allocated - used - pending);
-  const usedPct    = allocated > 0 ? Math.min(100, ((used + pending) / allocated) * 100) : 0;
+  const total = allocated;
+  const usedPct    = total > 0 ? Math.min(100, ((used + pending) / total) * 100) : 0;
 
   const fillClass =
     usedPct >= 90 ? "lv-balCard__barFill--danger"
     : usedPct >= 70 ? "lv-balCard__barFill--warn"
     : "";
 
+  const allocLabel = mode === "front_loaded" ? "allocated" : "accrued";
+
   return (
     <Paper elevation={0} className="lv-balCard">
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
         <Box sx={{ color: TYPE_COLOR[type] }}>{TYPE_ICON[type]}</Box>
         <Typography className="lv-balCard__type">{TYPE_LABEL[type]}</Typography>
+        {mode !== "accrual_only" && (
+          <Chip size="small" label={MODE_LABEL[mode]} sx={{ fontSize: 10, height: 18, opacity: 0.7 }} />
+        )}
       </Stack>
       <Typography className="lv-balCard__remaining">
         {remaining.toFixed(1)}
@@ -133,8 +148,11 @@ function BalanceCard({ type, balances }) {
         </Typography>
       </Typography>
       <Typography className="lv-balCard__sub">
-        {used.toFixed(1)}h used · {pending.toFixed(1)}h pending · {allocated.toFixed(1)}h accrued
+        {used.toFixed(1)}h used · {pending.toFixed(1)}h pending · {allocated.toFixed(1)}h {allocLabel}
         {carriedOver > 0 && ` · ${carriedOver.toFixed(1)}h carried over`}
+        {mode === "hybrid" && (
+          ` · ${(policy?.maxBorrowAheadHours?.[type] ?? 0)}h borrow limit`
+        )}
       </Typography>
       <Box className="lv-balCard__bar">
         <Box
@@ -153,6 +171,7 @@ export default function LeavePage() {
   const isPrivileged = user?.role === "owner" || user?.role === "manager";
 
   // ── data ──
+  const [selectedYear, setSelectedYear] = React.useState(currentYear);
   const [myRequests,   setMyRequests]   = React.useState([]);
   const [myBalances,   setMyBalances]   = React.useState([]);
   const [teamRequests, setTeamRequests] = React.useState([]);
@@ -200,7 +219,7 @@ export default function LeavePage() {
     if (!user) return;
     setLoading(true);
     try {
-      const year = String(currentYear);
+      const year = String(selectedYear);
       const [reqs, bals] = await Promise.all([
         leaveApi.getLeaveRequests({ year, userId: user._id }),
         leaveApi.getLeaveBalances({ year, userId: user._id }),
@@ -208,25 +227,25 @@ export default function LeavePage() {
       setMyRequests(reqs);
       setMyBalances(bals);
 
+      // Load accrual policy for all users (needed for balance card mode display)
+      try {
+        const pol = await policyApi.getLeavePolicy();
+        setPolicy(pol);
+      } catch { /* ignore if policy doesn't exist */ }
+
       if (isPrivileged) {
         const pending = await leaveApi.getLeaveRequests({ status: "pending" });
         // exclude own requests from team view
         setTeamRequests(pending.filter((r) => r.employee?._id !== user._id && r.employee?.userId !== user.userId));
         const users = await getUsers();
         setEmployees(users.filter((u) => u.status === "active"));
-
-        // Load accrual policy
-        try {
-          const pol = await policyApi.getLeavePolicy();
-          setPolicy(pol);
-        } catch { /* ignore if policy doesn't exist */ }
       }
     } catch (e) {
       toast(e.message || "Failed to load leave data", "error");
     } finally {
       setLoading(false);
     }
-  }, [user, isPrivileged]);
+  }, [user, isPrivileged, selectedYear]);
 
   React.useEffect(() => { load(); }, [load]);
 
@@ -425,6 +444,13 @@ export default function LeavePage() {
   const openPolicyDialog = () => {
     setPolicyForm(policy ? {
       accrualEnabled: policy.accrualEnabled ?? false,
+      availabilityMode: policy.availabilityMode ?? "accrual_only",
+      maxBorrowAheadHours: {
+        vacation: policy.maxBorrowAheadHours?.vacation ?? 0,
+        sick:     policy.maxBorrowAheadHours?.sick     ?? 0,
+        personal: policy.maxBorrowAheadHours?.personal ?? 0,
+      },
+      midYearHireProration: policy.midYearHireProration ?? true,
       tenureTiers: policy.tenureTiers?.length > 0
         ? policy.tenureTiers.map((t) => ({ ...t }))
         : [{ minYears: 0, vacationHours: 80, sickHours: 40, personalHours: 0 }],
@@ -441,6 +467,9 @@ export default function LeavePage() {
       waitingPeriodDays: policy.waitingPeriodDays ?? 90,
     } : {
       accrualEnabled: false,
+      availabilityMode: "accrual_only",
+      maxBorrowAheadHours: { vacation: 0, sick: 0, personal: 0 },
+      midYearHireProration: true,
       tenureTiers: [{ minYears: 0, vacationHours: 80, sickHours: 40, personalHours: 0 }],
       accrualCapMultiplier: { vacation: 1.5, sick: 1.5, personal: 1.5 },
       carryoverLimits: { vacation: 40, sick: 40, personal: 0 },
@@ -511,7 +540,20 @@ export default function LeavePage() {
               {isPrivileged ? "Manage team leave requests and balances" : "Request time off and view your balances"}
             </Typography>
           </Box>
-          <Typography sx={{ opacity: 0.7, fontSize: 13 }}>{currentYear}</Typography>
+          <TextField
+            select size="small"
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+            sx={{
+              minWidth: 90,
+              "& .MuiOutlinedInput-root": { color: "#fff", fontSize: 13, "& fieldset": { borderColor: "rgba(255,255,255,0.3)" } },
+              "& .MuiSelect-icon": { color: "rgba(255,255,255,0.7)" },
+            }}
+          >
+            {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
+              <MenuItem key={y} value={y}>{y}</MenuItem>
+            ))}
+          </TextField>
         </Box>
       </Box>
 
@@ -525,7 +567,7 @@ export default function LeavePage() {
             {/* Balance cards */}
             <Box className="lv-balances">
               {LEAVE_TYPES.map((t) => (
-                <BalanceCard key={t} type={t} balances={myBalances} />
+                <BalanceCard key={t} type={t} balances={myBalances} policy={policy} />
               ))}
             </Box>
 
@@ -533,7 +575,8 @@ export default function LeavePage() {
               {/* ── Left: form + my requests ── */}
               <Stack spacing={3}>
 
-                {/* Request form */}
+                {/* Request form — hidden for past years */}
+                {selectedYear >= currentYear && (
                 <Paper elevation={0} className="lv-card">
                   <Typography variant="h6" className="lv-cardTitle">
                     {editingId ? "Edit Request" : "Request Time Off"}
@@ -570,6 +613,8 @@ export default function LeavePage() {
                           endDate={form.endDate}
                           existingRequests={myRequests}
                           editingId={editingId}
+                          minDate={localToday()}
+                          maxDate={`${currentYear + 1}-12-31`}
                           onRangeChange={(sd, ed) => {
                             setForm((f) => {
                               const next = { ...f, startDate: sd, endDate: ed };
@@ -586,6 +631,18 @@ export default function LeavePage() {
                           }}
                         />
                       </Box>
+
+                      {/* Cross-year info */}
+                      {form.startDate && form.endDate && form.endDate >= form.startDate &&
+                        new Date(form.startDate + "T00:00:00").getFullYear() !== new Date(form.endDate + "T00:00:00").getFullYear() && (
+                        <Box className="lv-formGrid__full">
+                          <Alert severity="info" sx={{ borderRadius: 2, fontSize: 13 }}>
+                            This request spans two years. Hours will be split proportionally between{" "}
+                            {new Date(form.startDate + "T00:00:00").getFullYear()} and{" "}
+                            {new Date(form.endDate + "T00:00:00").getFullYear()}.
+                          </Alert>
+                        </Box>
+                      )}
 
                       {/* Total hours — auto-calculated for vacation, manual for others */}
                       <Box className="lv-formGrid__full">
@@ -658,11 +715,12 @@ export default function LeavePage() {
                     </Stack>
                   </Box>
                 </Paper>
+                )}
 
                 {/* My requests */}
                 <Paper elevation={0} className="lv-card">
                   <Typography variant="h6" className="lv-cardTitle">My Requests</Typography>
-                  <Typography className="lv-cardSub">Your leave requests for {currentYear}</Typography>
+                  <Typography className="lv-cardSub">Your leave requests for {selectedYear}</Typography>
 
                   {myRequests.length === 0 ? (
                     <Box className="lv-empty">No leave requests yet</Box>
@@ -701,6 +759,7 @@ export default function LeavePage() {
                             </Box>
                             <Stack alignItems="flex-end" spacing={0.5} sx={{ flexShrink: 0 }}>
                               <Typography className="lv-requestRow__hours">{fmtHM(req.totalHours)}</Typography>
+                              {selectedYear >= currentYear && (
                               <Stack direction="row" spacing={0.5}>
                                 {req.status === "pending" && (
                                   <IconButton size="small" onClick={() => startEdit(req)}>
@@ -717,6 +776,7 @@ export default function LeavePage() {
                                   <DeleteOutlineOutlinedIcon fontSize="small" />
                                 </IconButton>
                               </Stack>
+                              )}
                             </Stack>
                           </Stack>
                         </Paper>
@@ -819,6 +879,9 @@ export default function LeavePage() {
                           {policy?.accrualEnabled
                             ? "Per-pay-period accrual is enabled"
                             : "Accrual is currently disabled (lump-sum mode)"}
+                          {policy?.availabilityMode && policy.availabilityMode !== "accrual_only" && (
+                            <> · Mode: {MODE_LABEL[policy.availabilityMode]}</>
+                          )}
                         </Typography>
                         {policy && (
                           <Stack spacing={0.75} sx={{ my: 1.5 }}>
@@ -1128,6 +1191,75 @@ export default function LeavePage() {
                   {policyForm.accrualEnabled ? "Enabled" : "Disabled"}
                 </Button>
               </Stack>
+
+              <Divider />
+
+              {/* Availability Mode */}
+              <Box>
+                <Typography sx={{ fontWeight: 800, fontSize: 14, mb: 0.5 }}>Leave Availability Mode</Typography>
+                <Typography sx={{ fontSize: 12, color: "rgba(15,27,16,0.55)", mb: 1.5 }}>
+                  How leave hours become available to employees
+                </Typography>
+                <TextField
+                  select fullWidth size="small"
+                  value={policyForm.availabilityMode}
+                  onChange={(e) => setPolicyForm((f) => ({ ...f, availabilityMode: e.target.value }))}
+                >
+                  <MenuItem value="front_loaded">
+                    Front-loaded — All hours available at start of year
+                  </MenuItem>
+                  <MenuItem value="accrual_only">
+                    Accrual only — Use only what you've earned
+                  </MenuItem>
+                  <MenuItem value="hybrid">
+                    Hybrid — Borrow ahead up to a limit
+                  </MenuItem>
+                </TextField>
+
+                {/* Hybrid: borrow ahead limits */}
+                {policyForm.availabilityMode === "hybrid" && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography sx={{ fontSize: 12, color: "rgba(15,27,16,0.55)", mb: 1 }}>
+                      Max hours employees can borrow ahead of accrual
+                    </Typography>
+                    <Stack direction="row" spacing={1.5}>
+                      {LEAVE_TYPES.map((t) => (
+                        <TextField
+                          key={t} size="small" type="number" label={capitalize(t)}
+                          value={policyForm.maxBorrowAheadHours[t]}
+                          onChange={(e) => setPolicyForm((f) => ({
+                            ...f,
+                            maxBorrowAheadHours: { ...f.maxBorrowAheadHours, [t]: Number(e.target.value) || 0 },
+                          }))}
+                          inputProps={{ min: 0, step: 8 }}
+                          sx={{ flex: 1 }}
+                        />
+                      ))}
+                    </Stack>
+                  </Box>
+                )}
+
+                {/* Front-loaded: proration toggle */}
+                {policyForm.availabilityMode === "front_loaded" && (
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: 2 }}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 700, fontSize: 13 }}>Prorate for mid-year hires</Typography>
+                      <Typography sx={{ fontSize: 12, color: "rgba(15,27,16,0.55)" }}>
+                        Employees hired mid-year get a proportional allocation
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant={policyForm.midYearHireProration ? "contained" : "outlined"}
+                      onClick={() => setPolicyForm((f) => ({ ...f, midYearHireProration: !f.midYearHireProration }))}
+                      sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800, minWidth: 80,
+                        ...(policyForm.midYearHireProration ? { bgcolor: "#163A2E" } : {}) }}
+                    >
+                      {policyForm.midYearHireProration ? "Yes" : "No"}
+                    </Button>
+                  </Stack>
+                )}
+              </Box>
 
               <Divider />
 
