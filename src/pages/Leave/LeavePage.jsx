@@ -29,6 +29,7 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import DateRangePicker from "../../components/DateRangePicker";
 
 import { useAuth } from "../../context/AuthContext";
 import * as leaveApi from "../../api/leave";
@@ -42,7 +43,6 @@ const LEAVE_TYPES = ["vacation", "sick", "personal"];
 
 const TYPE_LABEL = { vacation: "Vacation", sick: "Sick Leave", personal: "Personal" };
 const TYPE_COLOR = { vacation: "#1565c0", sick: "#6a1b9a", personal: "#2e7d32" };
-const TYPE_BG    = { vacation: "rgba(21,101,192,0.08)", sick: "rgba(106,27,154,0.08)", personal: "rgba(46,125,50,0.08)" };
 
 const STATUS_COLOR = {
   pending:  "warning",
@@ -560,29 +560,30 @@ export default function LeavePage() {
                         </TextField>
                       </Box>
 
-                      {/* Start date */}
-                      <Box>
+                      {/* Date range picker */}
+                      <Box className="lv-formGrid__full">
                         <Typography variant="caption" className="lv-label">
-                          Start Date <span className="lv-required">*</span>
+                          Dates <span className="lv-required">*</span>
                         </Typography>
-                        <TextField
-                          type="date" fullWidth size="small"
-                          value={form.startDate}
-                          onChange={setField("startDate")}
-                          inputProps={{ max: form.endDate || undefined }}
-                        />
-                      </Box>
-
-                      {/* End date */}
-                      <Box>
-                        <Typography variant="caption" className="lv-label">
-                          End Date <span className="lv-required">*</span>
-                        </Typography>
-                        <TextField
-                          type="date" fullWidth size="small"
-                          value={form.endDate}
-                          onChange={setField("endDate")}
-                          inputProps={{ min: form.startDate || undefined }}
+                        <DateRangePicker
+                          startDate={form.startDate}
+                          endDate={form.endDate}
+                          existingRequests={myRequests}
+                          editingId={editingId}
+                          onRangeChange={(sd, ed) => {
+                            setForm((f) => {
+                              const next = { ...f, startDate: sd, endDate: ed };
+                              if (sd && ed && ed >= sd && !checkOverlap(sd, ed) && f.type !== "vacation") {
+                                next.totalHours = String(countWeekdays(sd, ed) * 8);
+                              }
+                              return next;
+                            });
+                            if (sd && ed && ed >= sd) {
+                              setFormError(checkOverlap(sd, ed) ? "You already have an approved or pending leave request that overlaps with the selected dates" : "");
+                            } else {
+                              setFormError("");
+                            }
+                          }}
                         />
                       </Box>
 
