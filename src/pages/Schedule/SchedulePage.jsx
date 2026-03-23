@@ -3,7 +3,9 @@ import {
   Typography, Box, Paper, Button, IconButton, TextField,
   Select, MenuItem, FormControl, FormControlLabel,
   Checkbox, Stack, Divider, CircularProgress,
+  Dialog, DialogTitle, DialogContent, DialogActions, Chip,
 } from "@mui/material";
+import CloseIcon  from "@mui/icons-material/Close";
 import EventNoteOutlinedIcon      from "@mui/icons-material/EventNoteOutlined";
 import PeopleAltOutlinedIcon      from "@mui/icons-material/PeopleAltOutlined";
 import AccessTimeOutlinedIcon     from "@mui/icons-material/AccessTimeOutlined";
@@ -34,6 +36,22 @@ const MONTH_FULL  = ["January","February","March","April","May","June","July","A
 const DAY_NAMES   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const DARK        = "#1a3a2e";
 const DARK_MID    = "rgba(26,58,46,.35)";
+
+function to12h(time24) {
+  if (!time24) return "";
+  const [h, m] = time24.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+function fmtHM(decimal) {
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal - h) * 60);
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
 
 const getMonthGrid = (year, month) => {
   const first = new Date(year, month, 1);
@@ -93,44 +111,141 @@ const isSameId = (a, b) => String(a) === String(b);
 // ─── Leave helpers ────────────────────────────────────────────────────────────
 
 const LEAVE_STYLE = {
-  vacation: { bg: "#fff8e1", border: "#ffb300", text: "#e65100", icon: <BeachAccessOutlinedIcon sx={{ fontSize: 11, flexShrink: 0 }} /> },
+  vacation: { bg: "#e3f2fd", border: "#42a5f5", text: "#1565c0", icon: <BeachAccessOutlinedIcon sx={{ fontSize: 11, flexShrink: 0 }} /> },
   sick:     { bg: "#f3e5f5", border: "#9c27b0", text: "#6a1b9a", icon: <SickOutlinedIcon sx={{ fontSize: 11, flexShrink: 0 }} /> },
-  personal: { bg: "#e8f5e9", border: "#43a047", text: "#1b5e20", icon: <PersonOutlineOutlinedIcon sx={{ fontSize: 11, flexShrink: 0 }} /> },
+  personal: { bg: "#e0f2f1", border: "#26a69a", text: "#00695c", icon: <PersonOutlineOutlinedIcon sx={{ fontSize: 11, flexShrink: 0 }} /> },
 };
 const LEAVE_LABEL = { vacation: "Vacation", sick: "Sick Leave", personal: "Personal" };
 
 // ─── LeaveCard ────────────────────────────────────────────────────────────────
 
-function LeaveCard({ leave }) {
+function LeaveCard({ leave, onClick }) {
   const emp    = leave.employee || {};
   const name   = [emp.firstName, emp.lastName].filter(Boolean).join(" ") || "Unknown";
   const style  = LEAVE_STYLE[leave.type] || LEAVE_STYLE.personal;
 
   return (
-    <Box sx={{
-      bgcolor: style.bg,
-      border: `1px solid ${style.border}`,
-      borderRadius: "6px",
-      p: "7px 9px",
-    }}>
+    <Box
+      onClick={() => onClick?.(leave)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick?.(leave)}
+      sx={{
+        bgcolor: style.bg,
+        border: `1px solid ${style.border}`,
+        borderRadius: "6px",
+        p: "7px 9px",
+        cursor: "pointer",
+        transition: "opacity .15s, transform .1s",
+        "&:hover": { opacity: 0.88, transform: "translateY(-1px)" },
+      }}
+    >
       <Typography sx={{ fontSize: 12, fontWeight: 800, color: style.text, mb: 0.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {name}
       </Typography>
-      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ color: style.text, opacity: 0.85 }}>
-        {style.icon}
-        <Typography sx={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {LEAVE_LABEL[leave.type]}
-        </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.5} sx={{ color: style.text, opacity: 0.85 }}>
+        <Stack direction="row" alignItems="center" spacing={0.5} sx={{ minWidth: 0 }}>
+          {style.icon}
+          <Typography sx={{ fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {LEAVE_LABEL[leave.type]}
+          </Typography>
+        </Stack>
+        {leave.status === "pending" ? (
+          <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#e65100", bgcolor: "#fff3e0", borderRadius: "4px", px: 0.6, py: 0.1, flexShrink: 0, lineHeight: 1.4, textTransform: "uppercase" }}>
+            Pending
+          </Typography>
+        ) : (
+          <Typography sx={{ fontSize: 9, fontWeight: 800, color: "#2e7d32", bgcolor: "#e8f5e9", borderRadius: "4px", px: 0.6, py: 0.1, flexShrink: 0, lineHeight: 1.4, textTransform: "uppercase" }}>
+            Approved
+          </Typography>
+        )}
       </Stack>
     </Box>
   );
 }
 
+// ─── LeaveDetailModal ────────────────────────────────────────────────────────
+
+function LeaveDetailModal({ open, leave, onClose }) {
+  if (!leave) return null;
+  const emp   = leave.employee || {};
+  const name  = [emp.firstName, emp.lastName].filter(Boolean).join(" ") || "Unknown";
+  const style = LEAVE_STYLE[leave.type] || LEAVE_STYLE.personal;
+
+  const fmtDate = (d) => {
+    if (!d) return "—";
+    const dt = new Date(d);
+    return dt.toLocaleDateString(undefined, { weekday: "short", year: "numeric", month: "short", day: "numeric" });
+  };
+
+  const statusColor = { approved: "success", pending: "warning", denied: "error", cancelled: "default" };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: "12px" } }}>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          {style.icon}
+          <Typography sx={{ fontWeight: 800, fontSize: 16 }}>Leave Details</Typography>
+        </Stack>
+        <IconButton size="small" onClick={onClose}><CloseIcon fontSize="small" /></IconButton>
+      </DialogTitle>
+      <DialogContent dividers sx={{ pt: 2 }}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: "rgba(14,46,37,.55)", textTransform: "uppercase", mb: 0.5 }}>Employee</Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{name}</Typography>
+          </Box>
+          <Stack direction="row" spacing={2}>
+            <Box flex={1}>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "rgba(14,46,37,.55)", textTransform: "uppercase", mb: 0.5 }}>Type</Typography>
+              <Typography sx={{ fontSize: 14, fontWeight: 700, color: style.text }}>{LEAVE_LABEL[leave.type]}</Typography>
+            </Box>
+            <Box flex={1}>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "rgba(14,46,37,.55)", textTransform: "uppercase", mb: 0.5 }}>Status</Typography>
+              <Chip size="small" label={leave.status} color={statusColor[leave.status] || "default"} sx={{ fontWeight: 700, textTransform: "capitalize" }} />
+            </Box>
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <Box flex={1}>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "rgba(14,46,37,.55)", textTransform: "uppercase", mb: 0.5 }}>Start Date</Typography>
+              <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{fmtDate(leave.startDate)}</Typography>
+            </Box>
+            <Box flex={1}>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "rgba(14,46,37,.55)", textTransform: "uppercase", mb: 0.5 }}>End Date</Typography>
+              <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{fmtDate(leave.endDate)}</Typography>
+            </Box>
+          </Stack>
+          <Box>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: "rgba(14,46,37,.55)", textTransform: "uppercase", mb: 0.5 }}>Total Hours</Typography>
+            <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{fmtHM(leave.totalHours)}</Typography>
+          </Box>
+          {leave.reason && (
+            <Box>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "rgba(14,46,37,.55)", textTransform: "uppercase", mb: 0.5 }}>Reason</Typography>
+              <Typography sx={{ fontSize: 13 }}>{leave.reason}</Typography>
+            </Box>
+          )}
+          {leave.reviewNote && (
+            <Box>
+              <Typography sx={{ fontSize: 11, fontWeight: 600, color: "rgba(14,46,37,.55)", textTransform: "uppercase", mb: 0.5 }}>Review Note</Typography>
+              <Typography sx={{ fontSize: 13 }}>{leave.reviewNote}</Typography>
+            </Box>
+          )}
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 1.5 }}>
+        <Button onClick={onClose} sx={{ color: DARK, fontWeight: 700, textTransform: "none" }}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 // ─── ShiftCard ────────────────────────────────────────────────────────────────
 
-function ShiftCard({ shift, clickable, onCardClick }) {
+function ShiftCard({ shift, clickable, isMine, onCardClick }) {
   const emp  = shift.employee || {};
   const name = [emp.firstName, emp.lastName].filter(Boolean).join(" ") || "Unknown";
+  const bg   = isMine ? "#1565c0" : DARK;
 
   return (
     <Box
@@ -139,7 +254,7 @@ function ShiftCard({ shift, clickable, onCardClick }) {
       tabIndex={clickable ? 0 : undefined}
       onKeyDown={clickable ? (e) => e.key === "Enter" && onCardClick(shift) : undefined}
       sx={{
-        bgcolor: DARK,
+        bgcolor: bg,
         color: "#fff",
         borderRadius: "6px",
         p: "9px 10px",
@@ -157,7 +272,7 @@ function ShiftCard({ shift, clickable, onCardClick }) {
       <Stack direction="row" alignItems="center" spacing={0.6} sx={{ opacity: 0.85 }}>
         <AccessTimeIcon sx={{ fontSize: 11, flexShrink: 0 }} />
         <Typography sx={{ fontSize: 11.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {shift.startTime}–{shift.endTime}
+          {to12h(shift.startTime)}–{to12h(shift.endTime)}
         </Typography>
       </Stack>
       {shift.task?.name && (
@@ -174,7 +289,7 @@ function ShiftCard({ shift, clickable, onCardClick }) {
 
 // ─── DayColumn ────────────────────────────────────────────────────────────────
 
-function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canEditShift, onAddClick, onCardClick }) {
+function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canEditShift, currentUserId, onAddClick, onCardClick, onLeaveClick }) {
   const shiftCount = dayShifts.length;
   const leaveCount = dayLeave.length;
 
@@ -215,7 +330,7 @@ function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canEditShift
         {leaveCount > 0 && (
           <Stack spacing={0.75}>
             {dayLeave.map((lr) => (
-              <LeaveCard key={lr.id} leave={lr} />
+              <LeaveCard key={lr.id} leave={lr} onClick={onLeaveClick} />
             ))}
           </Stack>
         )}
@@ -227,7 +342,7 @@ function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canEditShift
         ) : (
           <Stack spacing={1}>
             {dayShifts.map((shift) => (
-              <ShiftCard key={shift.id} shift={shift} clickable={canEditShift(shift)} onCardClick={onCardClick} />
+              <ShiftCard key={shift.id} shift={shift} clickable={canEditShift(shift)} isMine={isSameId(shift.employee?.id || shift.employee?._id, currentUserId)} onCardClick={onCardClick} />
             ))}
           </Stack>
         )}
@@ -271,7 +386,7 @@ function MonthCell({ date, currentMonth, today, shiftCount, leaveByType, onClick
         <Box className="sched-month-dots">
           {leaveByType.vacation > 0 && (
             <Box className="sched-month-dot-group">
-              <Box className="sched-month-dot" sx={{ bgcolor: "#ffb300" }} />
+              <Box className="sched-month-dot" sx={{ bgcolor: "#42a5f5" }} />
               <span>{leaveByType.vacation}</span>
             </Box>
           )}
@@ -283,7 +398,7 @@ function MonthCell({ date, currentMonth, today, shiftCount, leaveByType, onClick
           )}
           {leaveByType.personal > 0 && (
             <Box className="sched-month-dot-group">
-              <Box className="sched-month-dot" sx={{ bgcolor: "#43a047" }} />
+              <Box className="sched-month-dot" sx={{ bgcolor: "#26a69a" }} />
               <span>{leaveByType.personal}</span>
             </Box>
           )}
@@ -314,7 +429,7 @@ const FILTER_LABEL_SX = {
 export default function SchedulePage() {
   const { user } = useAuth();
   const isPrivileged = user?.role === "manager" || user?.role === "owner";
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const [viewMode,         setViewMode]         = React.useState("week");
   const [weekStart,        setWeekStart]        = React.useState(() => {
@@ -342,6 +457,7 @@ export default function SchedulePage() {
   const [filterTaskId,     setFilterTaskId]     = React.useState("");
   const [approvedLeave,    setApprovedLeave]    = React.useState([]);
   const [modal, setModal] = React.useState({ open: false, date: null, shift: null });
+  const [leaveModal, setLeaveModal] = React.useState({ open: false, leave: null });
 
   // Sync week/month to ?date= param when it changes (e.g. from notification click)
   const lastAppliedDate = React.useRef(null);
@@ -376,10 +492,14 @@ export default function SchedulePage() {
     const load = async () => {
       setLoading(true);
       try {
-        const leavePromises = [getLeaveRequests({ status: "approved", year: leaveYear })];
+        const leavePromises = [
+          getLeaveRequests({ status: "approved", year: leaveYear }),
+          getLeaveRequests({ status: "pending", year: leaveYear }),
+        ];
         // If grid spans two years (e.g. Dec-Jan), fetch leave for both years
         if (viewMode === "month" && gridStart.getFullYear() !== gridEnd.getFullYear()) {
           leavePromises.push(getLeaveRequests({ status: "approved", year: gridEnd.getFullYear() }));
+          leavePromises.push(getLeaveRequests({ status: "pending", year: gridEnd.getFullYear() }));
         }
         const [shiftsData, usersData, tasksData, ...leaveResults] = await Promise.all([
           getShifts({ from: fetchFrom, to: fetchTo }),
@@ -406,7 +526,7 @@ export default function SchedulePage() {
     };
     load();
     return () => { cancelled = true; };
-  }, [fetchFrom, fetchTo, leaveYear, viewMode]);
+  }, [fetchFrom, fetchTo, leaveYear, viewMode, gridStart, gridEnd]);
 
   // ── navigation ─────────────────────────────────────────────────────────
   const goToday = () => {
@@ -467,6 +587,13 @@ export default function SchedulePage() {
       if (filterEmployeeId) {
         const empId = lr.employee?._id || lr.employee?.id;
         if (!isSameId(empId, filterEmployeeId)) return false;
+      }
+      // Pending leave: only visible to managers/owners OR to the request owner
+      if (lr.status === "pending") {
+        if (!isPrivileged) {
+          const empId = lr.employee?._id || lr.employee?.id;
+          if (!isSameId(empId, user?._id)) return false;
+        }
       }
       return true;
     });
@@ -685,8 +812,10 @@ export default function SchedulePage() {
                   dayLeave={leaveForDay(date)}
                   canCreate={isPrivileged}
                   canEditShift={canEditShift}
+                  currentUserId={user?._id}
                   onAddClick={openAdd}
                   onCardClick={openEdit}
+                  onLeaveClick={(leave) => setLeaveModal({ open: true, leave })}
                 />
               ))}
             </Box>
@@ -726,7 +855,7 @@ export default function SchedulePage() {
           {[
             { icon: <PeopleAltOutlinedIcon />,     label: "Total Employees", value: totalEmployees },
             { icon: <CalendarMonthOutlinedIcon />, label: "Total Shifts",    value: statsShifts.length },
-            { icon: <AccessTimeOutlinedIcon />,    label: "Total Hours",     value: `${totalHours.toFixed(1)}h` },
+            { icon: <AccessTimeOutlinedIcon />,    label: "Total Hours",     value: fmtHM(totalHours) },
           ].map(({ icon, label, value }) => (
             <Paper key={label} elevation={0} sx={{ ...CARD_SX, p: "18px 20px", display: "flex", alignItems: "center", gap: 1.75 }}>
               <Box sx={{ width: 40, height: 40, borderRadius: "8px", bgcolor: "rgba(26,58,46,.08)", display: "grid", placeItems: "center", color: DARK, flexShrink: 0 }}>
@@ -756,6 +885,12 @@ export default function SchedulePage() {
         onSave={handleSave}
         onDelete={handleDelete}
         onNewTask={handleNewTask}
+      />
+
+      <LeaveDetailModal
+        open={leaveModal.open}
+        leave={leaveModal.leave}
+        onClose={() => setLeaveModal({ open: false, leave: null })}
       />
     </Box>
   );
