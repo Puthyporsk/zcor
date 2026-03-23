@@ -109,6 +109,14 @@ function TimesheetTopBar({ weeklyTotal }) {
   );
 }
 
+function fmtHM(decimal) {
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal - h) * 60);
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+
 // ─── page ────────────────────────────────────────────────────────────────────
 
 export default function TimeEntryPage() {
@@ -185,7 +193,7 @@ export default function TimeEntryPage() {
     [entries, weekStart]
   );
 
-  const weeklyTotal       = weeklyEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0).toFixed(1) + "h";
+  const weeklyTotal       = fmtHM(weeklyEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0));
   const billableHours     = weeklyEntries.filter((e) => e.type === "Billable").reduce((s, e) => s + parseFloat(e.hours || 0), 0);
   const nonBillableHours  = weeklyEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0) - billableHours;
   const hoursByProject    = weeklyEntries.reduce((acc, e) => {
@@ -194,9 +202,9 @@ export default function TimeEntryPage() {
     return acc;
   }, {});
 
-  const draftCount     = entries.filter((e) => e.status === "Draft").length;
-  const submittedCount = entries.filter((e) => e.status === "Submitted").length;
-  const approvedCount  = entries.filter((e) => e.status === "Approved").length;
+  const draftCount     = weeklyEntries.filter((e) => e.status === "Draft").length;
+  const submittedCount = weeklyEntries.filter((e) => e.status === "Submitted").length;
+  const approvedCount  = weeklyEntries.filter((e) => e.status === "Approved").length;
 
   const displayedEntries = (filterFrom || filterTo)
     ? entries.filter((e) => {
@@ -447,9 +455,11 @@ export default function TimeEntryPage() {
                         {projects.map((p) => (
                           <MenuItem key={p.id} value={p.id}>{p.name}</MenuItem>
                         ))}
-                        <MenuItem value="__add__" sx={{ color: "primary.main", fontWeight: 700 }}>
-                          + Add new project…
-                        </MenuItem>
+                        {(user?.role === "owner" || user?.role === "manager") && (
+                          <MenuItem value="__add__" sx={{ color: "primary.main", fontWeight: 700 }}>
+                            + Add new project…
+                          </MenuItem>
+                        )}
                       </TextField>
                     )}
                   </div>
@@ -523,9 +533,11 @@ export default function TimeEntryPage() {
                         {tasks.map((t) => (
                           <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
                         ))}
-                        <MenuItem value="__add__" sx={{ color: "primary.main", fontWeight: 700 }}>
-                          + Add new task…
-                        </MenuItem>
+                        {(user?.role === "owner" || user?.role === "manager") && (
+                          <MenuItem value="__add__" sx={{ color: "primary.main", fontWeight: 700 }}>
+                            + Add new task…
+                          </MenuItem>
+                        )}
                       </TextField>
                     )}
                   </div>
@@ -558,8 +570,10 @@ export default function TimeEntryPage() {
                       Hours <span className="te-required">*</span>
                     </Typography>
                     <TextField
-                      fullWidth size="small" value={hours}
-                      onChange={(e) => { setHours(e.target.value); setErrors((p) => ({ ...p, hours: undefined })); }}
+                      type="number" fullWidth size="small" value={hours}
+                      onKeyDown={(e) => { if (e.key === "-" || e.key === "e") e.preventDefault(); }}
+                      onChange={(e) => { const v = e.target.value; if (v !== "" && Number(v) < 0) return; setHours(v); setErrors((p) => ({ ...p, hours: undefined })); }}
+                      slotProps={{ htmlInput: { min: 0, max: 24, step: 0.25 } }}
                       error={!!errors.hours} placeholder="e.g. 2.5"
                       helperText={errors.hours || "In decimal format"}
                     />
@@ -609,7 +623,7 @@ export default function TimeEntryPage() {
                   <Typography className="te-cardTitle" variant="subtitle1">Time Entries</Typography>
                   <Typography className="te-cardSubtitle" variant="body2">
                     {displayedEntries.length} entries •{" "}
-                    {displayedEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0).toFixed(1)}h total
+                    {fmtHM(displayedEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0))} total
                   </Typography>
                 </div>
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -672,7 +686,7 @@ export default function TimeEntryPage() {
 
                       <div className="te-entryRow__right">
                         <div className="te-entryHoursBlock">
-                          <div className="te-entryHours">{entry.hours}h</div>
+                          <div className="te-entryHours">{fmtHM(parseFloat(entry.hours))}</div>
                           <div className="te-entryType">{entry.type}</div>
                         </div>
                         <div className="te-entryActions">
@@ -731,9 +745,9 @@ export default function TimeEntryPage() {
               <Typography className="te-cardTitle" variant="subtitle1">Weekly Summary</Typography>
               <Typography className="te-cardSubtitle" variant="body2">Current week statistics</Typography>
               <Divider sx={{ my: 2 }} />
-              <div className="te-summaryRow"><span>Total Hours</span><strong>{(billableHours + nonBillableHours).toFixed(1)}h</strong></div>
-              <div className="te-summaryRow"><span>Billable Hours</span><strong className="te-green">{billableHours.toFixed(1)}h</strong></div>
-              <div className="te-summaryRow"><span>Non-billable</span><strong>{nonBillableHours.toFixed(1)}h</strong></div>
+              <div className="te-summaryRow"><span>Total Hours</span><strong>{fmtHM(billableHours + nonBillableHours)}</strong></div>
+              <div className="te-summaryRow"><span>Billable Hours</span><strong className="te-green">{fmtHM(billableHours)}</strong></div>
+              <div className="te-summaryRow"><span>Non-billable</span><strong>{fmtHM(nonBillableHours)}</strong></div>
 
               {Object.keys(hoursByProject).length > 0 && (
                 <>
@@ -741,7 +755,7 @@ export default function TimeEntryPage() {
                   <Typography sx={{ fontWeight: 900, fontSize: 12, opacity: 0.7, mb: 1 }}>By Project</Typography>
                   {Object.entries(hoursByProject).map(([proj, hrs]) => (
                     <div key={proj} className="te-summaryRow">
-                      <span>{proj}</span><strong>{hrs.toFixed(1)}h</strong>
+                      <span>{proj}</span><strong>{fmtHM(hrs)}</strong>
                     </div>
                   ))}
                 </>

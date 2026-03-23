@@ -35,6 +35,14 @@ const DAY_NAMES   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const DARK        = "#1a3a2e";
 const DARK_MID    = "rgba(26,58,46,.35)";
 
+function fmtHM(decimal) {
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal - h) * 60);
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+
 const getMonthGrid = (year, month) => {
   const first = new Date(year, month, 1);
   const dayOfWeek = first.getDay();
@@ -726,7 +734,7 @@ export default function SchedulePage() {
           {[
             { icon: <PeopleAltOutlinedIcon />,     label: "Total Employees", value: totalEmployees },
             { icon: <CalendarMonthOutlinedIcon />, label: "Total Shifts",    value: statsShifts.length },
-            { icon: <AccessTimeOutlinedIcon />,    label: "Total Hours",     value: `${totalHours.toFixed(1)}h` },
+            { icon: <AccessTimeOutlinedIcon />,    label: "Total Hours",     value: fmtHM(totalHours) },
           ].map(({ icon, label, value }) => (
             <Paper key={label} elevation={0} sx={{ ...CARD_SX, p: "18px 20px", display: "flex", alignItems: "center", gap: 1.75 }}>
               <Box sx={{ width: 40, height: 40, borderRadius: "8px", bgcolor: "rgba(26,58,46,.08)", display: "grid", placeItems: "center", color: DARK, flexShrink: 0 }}>
