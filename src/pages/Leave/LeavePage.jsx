@@ -70,6 +70,14 @@ const localToday = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+function fmtHM(decimal) {
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal - h) * 60);
+  if (h && m) return `${h}h ${m}m`;
+  if (h) return `${h}h`;
+  return `${m}m`;
+}
+
 const currentYear = new Date().getFullYear();
 
 // Count Mon–Fri days between two "YYYY-MM-DD" strings (inclusive)
@@ -223,7 +231,47 @@ export default function LeavePage() {
   React.useEffect(() => { load(); }, [load]);
 
   // ── form helpers ──
-  const setField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const checkOverlap = (sd, ed) => {
+    if (!sd || !ed || ed < sd) return false;
+    return myRequests.some((r) => {
+      if (editingId && r.id === editingId) return false;
+      if (r.status !== "approved" && r.status !== "pending") return false;
+      const rStart = r.startDate?.slice(0, 10);
+      const rEnd   = r.endDate?.slice(0, 10);
+      return rStart <= ed && rEnd >= sd;
+    });
+  };
+
+  const setField = (field) => (e) => {
+    const val = e.target.value;
+    setForm((f) => {
+      const next = { ...f, [field]: val };
+      if (field === "type" || field === "startDate" || field === "endDate") {
+        const type = field === "type" ? val : f.type;
+        const sd   = field === "startDate" ? val : f.startDate;
+        const ed   = field === "endDate" ? val : f.endDate;
+        // Auto-fill hours when dates are valid and no overlap
+        if (sd && ed && ed >= sd && !checkOverlap(sd, ed)) {
+          if (type !== "vacation") {
+            next.totalHours = String(countWeekdays(sd, ed) * 8);
+          }
+        }
+      }
+      return next;
+    });
+    // Show/clear overlap error when dates change
+    if (field === "startDate" || field === "endDate") {
+      const sd = field === "startDate" ? val : form.startDate;
+      const ed = field === "endDate"   ? val : form.endDate;
+      if (sd && ed && ed >= sd) {
+        setFormError(checkOverlap(sd, ed) ? "You already have an approved or pending leave request that overlaps with the selected dates" : "");
+      }
+    }
+  };
+
+  const leaveDays = form.startDate && form.endDate && form.endDate >= form.startDate ? countWeekdays(form.startDate, form.endDate) : 1;
+  const leaveMinH = (leaveDays - 1) * 8 + 0.25;
+  const leaveMaxH = leaveDays * 8;
 
   const resetForm = () => {
     setForm(emptyForm());
@@ -259,7 +307,11 @@ export default function LeavePage() {
       hours = weekdays * 8;
     } else {
       hours = parseFloat(form.totalHours);
-      if (!form.totalHours || isNaN(hours) || hours < 0.25) return setFormError("Enter at least 0.25 hours");
+      const days = countWeekdays(form.startDate, form.endDate);
+      const minHours = (days - 1) * 8 + 0.25;
+      const maxHours = days * 8;
+      if (!form.totalHours || isNaN(hours) || hours < minHours) return setFormError(`Enter at least ${minHours} hours for ${days} day${days > 1 ? "s" : ""}`);
+      if (hours > maxHours) return setFormError(`Hours cannot exceed ${maxHours}h (${days} days × 8h)`);
     }
 
     setSaving(true);
@@ -289,18 +341,34 @@ export default function LeavePage() {
     }
   };
 
-  const handleCancel = async (id) => {
+  const [cancelTarget, setCancelTarget] = React.useState(null);
+  const [cancelling,   setCancelling]   = React.useState(false);
+
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
+    setCancelling(true);
     try {
-      await leaveApi.cancelLeaveRequest(id);
+      await leaveApi.cancelLeaveRequest(cancelTarget.id);
       toast("Request cancelled");
+      setCancelTarget(null);
       await load();
     } catch (err) {
       toast(err.message || "Failed to cancel", "error");
+    } finally {
+      setCancelling(false);
     }
   };
 
+
   // ── review ──
+  const reopenPendingRef = React.useRef(false);
+
   const openReview = (request, action) => {
+    // If the all-pending modal is open, close it and remember to reopen after review
+    if (allPendingOpen) {
+      reopenPendingRef.current = true;
+      setAllPendingOpen(false);
+    }
     setReviewTarget({ request, action });
     setReviewNote("");
   };
@@ -314,8 +382,14 @@ export default function LeavePage() {
         reviewNote: reviewNote || undefined,
       });
       toast(`Request ${reviewTarget.action === "approve" ? "approved" : "denied"}`);
+      // Remove from team pending list locally
+      setTeamRequests((prev) => prev.filter((r) => r.id !== reviewTarget.request.id));
       setReviewTarget(null);
-      await load();
+      // Reopen the all-pending modal if it was open before
+      if (reopenPendingRef.current) {
+        reopenPendingRef.current = false;
+        setAllPendingOpen(true);
+      }
     } catch (err) {
       toast(err.message || "Review failed", "error");
     } finally {
@@ -534,9 +608,15 @@ export default function LeavePage() {
                             type="number" fullWidth size="small"
                             placeholder="e.g. 8"
                             value={form.totalHours}
-                            onChange={setField("totalHours")}
-                            inputProps={{ min: 0.25, step: 0.25 }}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (v !== "" && Number(v) > leaveMaxH) return;
+                              if (v !== "" && Number(v) < 0) return;
+                              setForm((f) => ({ ...f, totalHours: v }));
+                            }}
+                            inputProps={{ min: leaveMinH, max: leaveMaxH, step: 0.25 }}
                             onKeyDown={(e) => { if (e.key === "-" || e.key === "e") e.preventDefault(); }}
+                            helperText={form.startDate && form.endDate ? `Min ${leaveMinH}h · Max ${leaveMaxH}h (${leaveDays} working day${leaveDays > 1 ? "s" : ""} × 8h)` : ""}
                           />
                         )}
                       </Box>
@@ -619,17 +699,23 @@ export default function LeavePage() {
                               )}
                             </Box>
                             <Stack alignItems="flex-end" spacing={0.5} sx={{ flexShrink: 0 }}>
-                              <Typography className="lv-requestRow__hours">{req.totalHours}h</Typography>
-                              {req.status === "pending" && (
-                                <Stack direction="row" spacing={0.5}>
+                              <Typography className="lv-requestRow__hours">{fmtHM(req.totalHours)}</Typography>
+                              <Stack direction="row" spacing={0.5}>
+                                {req.status === "pending" && (
                                   <IconButton size="small" onClick={() => startEdit(req)}>
                                     <EditOutlinedIcon fontSize="small" />
                                   </IconButton>
-                                  <IconButton size="small" onClick={() => handleCancel(req.id)} color="error">
-                                    <DeleteOutlineOutlinedIcon fontSize="small" />
-                                  </IconButton>
-                                </Stack>
-                              )}
+                                )}
+                                <IconButton size="small" onClick={() => {
+                                  if (req.status === "pending" || req.status === "approved") {
+                                    setCancelTarget(req);
+                                  } else {
+                                    leaveApi.cancelLeaveRequest(req.id).then(() => { toast("Request deleted"); load(); }).catch((err) => toast(err.message || "Failed to delete", "error"));
+                                  }
+                                }} color="error">
+                                  <DeleteOutlineOutlinedIcon fontSize="small" />
+                                </IconButton>
+                              </Stack>
                             </Stack>
                           </Stack>
                         </Paper>
@@ -666,7 +752,7 @@ export default function LeavePage() {
                                     {req.employee?.firstName} {req.employee?.lastName}
                                   </Typography>
                                   <Typography className="lv-teamRow__meta">
-                                    {TYPE_LABEL[req.type]} · {req.totalHours}h
+                                    {TYPE_LABEL[req.type]} · {fmtHM(req.totalHours)}
                                   </Typography>
                                   <Typography className="lv-teamRow__meta">
                                     {formatDate(req.startDate)} – {formatDate(req.endDate)}
@@ -796,7 +882,13 @@ export default function LeavePage() {
       {/* Review dialog */}
       <Dialog
         open={Boolean(reviewTarget)}
-        onClose={() => setReviewTarget(null)}
+        onClose={() => {
+          setReviewTarget(null);
+          if (reopenPendingRef.current) {
+            reopenPendingRef.current = false;
+            setAllPendingOpen(true);
+          }
+        }}
         PaperProps={{ sx: { borderRadius: "16px", minWidth: 360 } }}
       >
         <DialogTitle sx={{ fontWeight: 900 }}>
@@ -809,7 +901,7 @@ export default function LeavePage() {
                 {reviewTarget.request.employee?.firstName} {reviewTarget.request.employee?.lastName}
               </Typography>
               <Typography sx={{ fontSize: 13, color: "rgba(15,27,16,0.60)" }}>
-                {TYPE_LABEL[reviewTarget.request.type]} · {reviewTarget.request.totalHours}h ·{" "}
+                {TYPE_LABEL[reviewTarget.request.type]} · {fmtHM(reviewTarget.request.totalHours)} ·{" "}
                 {formatDate(reviewTarget.request.startDate)} – {formatDate(reviewTarget.request.endDate)}
               </Typography>
             </Box>
@@ -823,7 +915,13 @@ export default function LeavePage() {
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setReviewTarget(null)} sx={{ textTransform: "none", fontWeight: 800 }}>
+          <Button onClick={() => {
+            setReviewTarget(null);
+            if (reopenPendingRef.current) {
+              reopenPendingRef.current = false;
+              setAllPendingOpen(true);
+            }
+          }} sx={{ textTransform: "none", fontWeight: 800 }}>
             Cancel
           </Button>
           <Button
@@ -836,6 +934,41 @@ export default function LeavePage() {
             {reviewing
               ? <CircularProgress size={16} sx={{ color: "#fff" }} />
               : reviewTarget?.action === "approve" ? "Approve" : "Deny"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Cancel confirmation dialog */}
+      <Dialog
+        open={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        PaperProps={{ sx: { borderRadius: "16px", minWidth: 340 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 900 }}>Cancel Request</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1 }}>Are you sure you want to cancel this leave request?</Typography>
+          {cancelTarget && (
+            <Paper elevation={0} sx={{ p: 1.5, bgcolor: "rgba(0,0,0,.03)", borderRadius: 2 }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 14 }}>
+                {TYPE_LABEL[cancelTarget.type]} · {fmtHM(cancelTarget.totalHours)}
+              </Typography>
+              <Typography sx={{ fontSize: 13, color: "rgba(15,27,16,0.60)" }}>
+                {formatDate(cancelTarget.startDate)} – {formatDate(cancelTarget.endDate)}
+              </Typography>
+            </Paper>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setCancelTarget(null)} sx={{ textTransform: "none", fontWeight: 800 }}>
+            Go Back
+          </Button>
+          <Button
+            variant="contained" color="error"
+            disabled={cancelling}
+            onClick={confirmCancel}
+            sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800 }}
+          >
+            {cancelling ? <CircularProgress size={16} sx={{ color: "#fff" }} /> : "Cancel Request"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -927,7 +1060,7 @@ export default function LeavePage() {
                         {req.employee?.firstName} {req.employee?.lastName}
                       </Typography>
                       <Typography className="lv-teamRow__meta">
-                        {TYPE_LABEL[req.type]} · {req.totalHours}h
+                        {TYPE_LABEL[req.type]} · {fmtHM(req.totalHours)}
                       </Typography>
                       <Typography className="lv-teamRow__meta">
                         {formatDate(req.startDate)} – {formatDate(req.endDate)}
@@ -941,13 +1074,13 @@ export default function LeavePage() {
                     <Stack spacing={0.75} sx={{ flexShrink: 0 }}>
                       <Button size="small" variant="contained" color="success"
                         startIcon={<CheckCircleOutlineIcon fontSize="small" />}
-                        onClick={() => { setAllPendingOpen(false); openReview(req, "approve"); }}
+                        onClick={() => openReview(req, "approve")}
                         sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800, fontSize: 12 }}>
                         Approve
                       </Button>
                       <Button size="small" variant="outlined" color="error"
                         startIcon={<CancelOutlinedIcon fontSize="small" />}
-                        onClick={() => { setAllPendingOpen(false); openReview(req, "deny"); }}
+                        onClick={() => openReview(req, "deny")}
                         sx={{ borderRadius: 999, textTransform: "none", fontWeight: 800, fontSize: 12 }}>
                         Deny
                       </Button>
