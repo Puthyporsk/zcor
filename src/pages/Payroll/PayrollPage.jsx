@@ -8,7 +8,6 @@ import {
   Button,
   Chip,
   Stack,
-  Divider,
   IconButton,
   Snackbar,
   Alert,
@@ -29,6 +28,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
 import { useAuth } from "../../context/AuthContext";
+import DateRangePicker from "../../components/DateRangePicker";
 import * as payrollApi from "../../api/payroll";
 import "../../styles/payroll.css";
 
@@ -462,7 +462,8 @@ export default function PayrollPage() {
       <Dialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        PaperProps={{ sx: { borderRadius: "16px", minWidth: 400 } }}
+        maxWidth="md" fullWidth
+        PaperProps={{ sx: { borderRadius: "16px" } }}
       >
         <DialogTitle sx={{ fontWeight: 900 }}>New Pay Period</DialogTitle>
         <DialogContent>
@@ -470,23 +471,31 @@ export default function PayrollPage() {
             <TextField
               select label="Frequency" fullWidth size="small"
               value={createForm.frequency}
-              onChange={(e) => setCreateForm((f) => ({ ...f, frequency: e.target.value }))}
+              onChange={(e) => setCreateForm((f) => ({ ...f, frequency: e.target.value, startDate: "", endDate: "" }))}
             >
               <MenuItem value="biweekly">Biweekly</MenuItem>
               <MenuItem value="monthly">Monthly</MenuItem>
             </TextField>
-            <TextField
-              type="date" label="Start Date" fullWidth size="small"
-              value={createForm.startDate}
-              onChange={(e) => setCreateForm((f) => ({ ...f, startDate: e.target.value }))}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              type="date" label="End Date" fullWidth size="small"
-              value={createForm.endDate}
-              onChange={(e) => setCreateForm((f) => ({ ...f, endDate: e.target.value }))}
-              InputLabelProps={{ shrink: true }}
-              inputProps={{ min: createForm.startDate || undefined }}
+            <DateRangePicker
+              startDate={createForm.startDate}
+              endDate={createForm.endDate}
+              disablePast={false}
+              singlePick
+              onRangeChange={(sd) => {
+                if (!sd) {
+                  setCreateForm((f) => ({ ...f, startDate: "", endDate: "" }));
+                  return;
+                }
+                const d = new Date(sd + "T00:00:00");
+                if (createForm.frequency === "biweekly") {
+                  d.setDate(d.getDate() + 13);
+                } else {
+                  d.setMonth(d.getMonth() + 1);
+                  d.setDate(d.getDate() - 1);
+                }
+                const autoEnd = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+                setCreateForm((f) => ({ ...f, startDate: sd, endDate: autoEnd }));
+              }}
             />
             {createError && <Alert severity="error" sx={{ borderRadius: 2 }}>{createError}</Alert>}
           </Stack>

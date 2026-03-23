@@ -24,6 +24,7 @@ import SendOutlinedIcon from "@mui/icons-material/SendOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 
 import { useAuth } from "../../context/AuthContext";
+import DateRangePicker from "../../components/DateRangePicker";
 import * as teApi from "../../api/timeEntries";
 import * as tasksApi from "../../api/tasks";
 import * as projectsApi from "../../api/projects";
@@ -618,31 +619,21 @@ export default function TimeEntryPage() {
 
             {/* Time Entries list */}
             <Paper elevation={0} className="te-card te-card--pad">
-              <div className="te-entriesHeader">
-                <div>
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ mb: 1.5 }}>
                   <Typography className="te-cardTitle" variant="subtitle1">Time Entries</Typography>
                   <Typography className="te-cardSubtitle" variant="body2">
                     {displayedEntries.length} entries •{" "}
                     {fmtHM(displayedEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0))} total
                   </Typography>
-                </div>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <TextField
-                    size="small" type="date" value={filterFrom}
-                    onChange={(e) => setFilterFrom(e.target.value)}
-                    className="te-dateMini" label="From"
-                    InputLabelProps={{ shrink: true }}
-                    InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon fontSize="small" sx={{ opacity: 0.65 }} /></InputAdornment> }}
-                  />
-                  <TextField
-                    size="small" type="date" value={filterTo}
-                    onChange={(e) => setFilterTo(e.target.value)}
-                    className="te-dateMini" label="To"
-                    InputLabelProps={{ shrink: true }}
-                    InputProps={{ startAdornment: <InputAdornment position="start"><CalendarMonthIcon fontSize="small" sx={{ opacity: 0.65 }} /></InputAdornment> }}
-                  />
-                </Stack>
-              </div>
+                </Box>
+                <DateRangePicker
+                  startDate={filterFrom}
+                  endDate={filterTo}
+                  disablePast={false}
+                  onRangeChange={(sd, ed) => { setFilterFrom(sd); setFilterTo(ed); }}
+                />
+              </Box>
 
               {loading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
