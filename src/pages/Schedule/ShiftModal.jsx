@@ -38,6 +38,14 @@ function getInitials(firstName, lastName) {
 }
 
 const BRAND = "#0E2E25";
+
+function to12h(time24) {
+  if (!time24) return "";
+  const [h, m] = time24.split(":").map(Number);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
 const BRAND_MED = "rgba(14,46,37,0.08)";
 const BRAND_BORDER = "rgba(14,46,37,0.18)";
 
@@ -521,7 +529,7 @@ export default function ShiftModal({
                   Delete this shift?
                 </Typography>
                 <Typography sx={{ fontSize: 11, color: "rgba(14,46,37,0.55)" }}>
-                  {shift?.employee?.firstName} {shift?.employee?.lastName} · {shift?.startTime}–{shift?.endTime}
+                  {shift?.employee?.firstName} {shift?.employee?.lastName} · {to12h(shift?.startTime)}–{to12h(shift?.endTime)}
                 </Typography>
               </Box>
               <Stack direction="row" spacing={0.75}>
