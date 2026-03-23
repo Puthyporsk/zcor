@@ -429,7 +429,7 @@ const FILTER_LABEL_SX = {
 export default function SchedulePage() {
   const { user } = useAuth();
   const isPrivileged = user?.role === "manager" || user?.role === "owner";
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const [viewMode,         setViewMode]         = React.useState("week");
   const [weekStart,        setWeekStart]        = React.useState(() => {
@@ -526,7 +526,7 @@ export default function SchedulePage() {
     };
     load();
     return () => { cancelled = true; };
-  }, [fetchFrom, fetchTo, leaveYear, viewMode]);
+  }, [fetchFrom, fetchTo, leaveYear, viewMode, gridStart, gridEnd]);
 
   // ── navigation ─────────────────────────────────────────────────────────
   const goToday = () => {
