@@ -337,6 +337,37 @@
   font-weight: 800 !important;
 }
 
+/* Clock Widget */
+.te-clock{
+  border-radius: 18px !important;
+  border: 1px solid rgba(15,27,16,0.10) !important;
+  background: rgba(255,255,255,0.94) !important;
+  box-shadow: 0 18px 55px rgba(15,27,16,0.10) !important;
+}
+
+.te-clock__timer{
+  font-family: "Roboto Mono", monospace;
+  font-size: 48px;
+  font-weight: 700;
+  color: #163A2E;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.te-clock__dot{
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2e7d32;
+  animation: te-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes te-pulse{
+  0%, 100%{ opacity: 1; transform: scale(1); }
+  50%{ opacity: 0.4; transform: scale(0.85); }
+}
+
 /* Responsive: stack right column under left */
 @media (max-width: 1023px){
   .te-grid{
