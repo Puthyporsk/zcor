@@ -1,5 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { apiFetch } from "../api/api";
 import "../styles/landing.css";
 
 import dashboardImg from "../assets/zcor-dashboard.png";
@@ -386,11 +387,20 @@ export default function LandingPage() {
 
           <form
             className="zcor-contactForm"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               setContactStatus("sending");
-              // Simulate send — replace with real API call
-              setTimeout(() => setContactStatus("sent"), 1200);
+              try {
+                await apiFetch("/api/contact", {
+                  method: "POST",
+                  body: contactForm,
+                });
+                setContactStatus("sent");
+                setContactForm({ name: "", email: "", message: "" });
+              } catch {
+                setContactStatus(null);
+                alert("Something went wrong. Please try again.");
+              }
             }}
           >
             <div className="zcor-contactForm__row">
