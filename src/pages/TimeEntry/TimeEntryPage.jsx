@@ -25,9 +25,11 @@ import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 
 import { useAuth } from "../../context/AuthContext";
 import DateRangePicker from "../../components/DateRangePicker";
+import ClockWidget from "./ClockWidget";
 import * as teApi from "../../api/timeEntries";
 import * as tasksApi from "../../api/tasks";
 import * as projectsApi from "../../api/projects";
+import { getShifts } from "../../api/shifts";
 import { getLeaveRequests } from "../../api/leave";
 import "../../styles/timeEntry.css";
 
@@ -58,15 +60,18 @@ const localToday = () => {
 
 // Map an API entry → frontend display shape
 const fromApi = (e) => ({
-  id:      e.id,
-  project: e.project ? { id: e.project.id, name: e.project.name } : null,
-  task:    e.task    ? { id: e.task.id,    name: e.task.name    } : null,
-  desc:    e.description || "",
-  date:    e.date ? e.date.slice(0, 10) : "",
-  hours:   String(e.hours),
-  type:    e.type === "billable" ? "Billable" : "Non-billable",
-  status:  capitalize(e.status),
-  note:    e.reviewNote || "",
+  id:          e.id,
+  project:     e.project ? { id: e.project.id, name: e.project.name } : null,
+  task:        e.task    ? { id: e.task.id,    name: e.task.name    } : null,
+  desc:        e.description || "",
+  date:        e.date ? e.date.slice(0, 10) : "",
+  fullDate:    e.date || "",
+  createdAt:   e.createdAt || "",
+  entryMethod: e.entryMethod || "manual",
+  hours:       String(e.hours),
+  type:        e.type === "billable" ? "Billable" : "Non-billable",
+  status:      capitalize(e.status),
+  note:        e.reviewNote || "",
 });
 
 // Map form fields → API payload
@@ -78,6 +83,34 @@ const toApiPayload = ({ projectId, taskId, desc, date, hours, type }) => ({
   hours:  parseFloat(hours),
   type:   type.toLowerCase(),
 });
+
+// Lateness: compare clock-in (or createdAt for manual) vs shift startTime
+// Returns null if on time / early / <15min late, or a label like "30m late"
+function getLateness(entry, shiftsMap) {
+  if (!entry.date) return null;
+  const dateKey = entry.date; // already "YYYY-MM-DD"
+  const shift = shiftsMap.get(dateKey);
+  if (!shift) return null;
+
+  const [hh, mm] = shift.startTime.split(":").map(Number);
+  const shiftStart = new Date(dateKey + "T00:00:00");
+  shiftStart.setHours(hh, mm, 0, 0);
+
+  const compareTime = entry.entryMethod === "clock"
+    ? new Date(entry.fullDate)
+    : new Date(entry.createdAt);
+
+  if (!compareTime || isNaN(compareTime)) return null;
+
+  const diffMs = compareTime - shiftStart;
+  if (diffMs <= 15 * 60 * 1000) return null; // on time or ≤15 min grace
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `${diffMins}m late`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h late`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d late`;
+}
 
 // Monday of the current week at midnight
 const getWeekStart = () => {
@@ -129,6 +162,7 @@ export default function TimeEntryPage() {
   const [tasks,         setTasks]         = React.useState([]);
   const [projects,      setProjects]      = React.useState([]);
   const [approvedLeave, setApprovedLeave] = React.useState([]);
+  const [shiftsMap,     setShiftsMap]     = React.useState(new Map());
   const [loading,   setLoading]   = React.useState(true);
   const [saving,   setSaving]   = React.useState(false);
   const [snack,    setSnack]    = React.useState({ open: false, severity: "success", message: "" });
@@ -155,6 +189,9 @@ export default function TimeEntryPage() {
   const [newProjectName,   setNewProjectName]   = React.useState("");
   const [projectSaving,    setProjectSaving]    = React.useState(false);
 
+  // toggle between clock widget and manual form
+  const [entryMode, setEntryMode] = React.useState("clock"); // "clock" | "manual"
+
   // ── load entries + tasks ────────────────────────────────────────────────
   React.useEffect(() => {
     if (!user) return;
@@ -170,10 +207,29 @@ export default function TimeEntryPage() {
           getLeaveRequests({ userId: user._id, status: "approved", year: String(new Date().getFullYear()) }),
         ]);
         if (!cancelled) {
-          setEntries(entriesData.map(fromApi));
+          const mapped = entriesData.map(fromApi);
+          setEntries(mapped);
           setTasks(tasksData);
           setProjects(projectsData);
           setApprovedLeave(leaveData);
+
+          // Fetch shifts to power lateness chips
+          if (mapped.length > 0) {
+            try {
+              const dates = mapped.map((e) => e.date).filter(Boolean);
+              const from = dates.reduce((a, b) => (a < b ? a : b));
+              const to = dates.reduce((a, b) => (a > b ? a : b));
+              const shifts = await getShifts({ from, to, userId: user._id });
+              const map = new Map();
+              for (const s of shifts) {
+                const sDate = s.date?.slice(0, 10);
+                if (sDate) map.set(sDate, s);
+              }
+              if (!cancelled) setShiftsMap(map);
+            } catch {
+              // shifts fetch failure shouldn't block the page
+            }
+          }
         }
       } catch (err) {
         if (!cancelled) setSnack({ open: true, severity: "error", message: err.message || "Failed to load entries." });
@@ -237,6 +293,7 @@ export default function TimeEntryPage() {
     const errs = {};
     if (!projectId) errs.project = "Required";
     if (!taskId)    errs.task    = "Required";
+    if (!desc.trim()) errs.desc  = "Please provide a reason for this manual entry";
     if (!date)    errs.date    = "Required";
     if (!hours || isNaN(parseFloat(hours)) || parseFloat(hours) <= 0)
       errs.hours = "Enter a valid number";
@@ -271,6 +328,7 @@ export default function TimeEntryPage() {
 
   const handleEdit = (entry) => {
     setEditingId(entry.id);
+    setEntryMode("manual");
     setProjectId(entry.project?.id || "");
     setTaskId(entry.task?.id || "");
     setDesc(entry.desc);
@@ -371,7 +429,60 @@ export default function TimeEntryPage() {
         <div className="te-grid">
           {/* LEFT COLUMN */}
           <div className="te-left">
+            {/* Mode toggle */}
+            <Stack direction="row" spacing={0} sx={{ mb: -1 }}>
+              <Button
+                variant={entryMode === "clock" ? "contained" : "outlined"}
+                onClick={() => { setEntryMode("clock"); if (editingId) resetForm(); }}
+                sx={{
+                  flex: 1,
+                  textTransform: "none",
+                  fontWeight: 800,
+                  borderRadius: "10px 0 0 10px",
+                  py: 1,
+                  fontSize: 14,
+                  ...(entryMode === "clock"
+                    ? { bgcolor: "#163A2E", "&:hover": { bgcolor: "#1a4a36" } }
+                    : { borderColor: "rgba(22,58,46,0.25)", color: "#163A2E" }),
+                }}
+              >
+                Time Clock
+              </Button>
+              <Button
+                variant={entryMode === "manual" ? "contained" : "outlined"}
+                onClick={() => setEntryMode("manual")}
+                sx={{
+                  flex: 1,
+                  textTransform: "none",
+                  fontWeight: 800,
+                  borderRadius: "0 10px 10px 0",
+                  py: 1,
+                  fontSize: 14,
+                  ...(entryMode === "manual"
+                    ? { bgcolor: "#163A2E", "&:hover": { bgcolor: "#1a4a36" } }
+                    : { borderColor: "rgba(22,58,46,0.25)", color: "#163A2E" }),
+                }}
+              >
+                Manual Entry
+              </Button>
+            </Stack>
+
+            {/* Clock In / Clock Out Widget */}
+            <Box sx={{ display: entryMode === "clock" ? "block" : "none" }}>
+              <ClockWidget
+                projects={projects}
+                tasks={tasks}
+                onEntryCreated={(entry) => {
+                  setEntries((prev) => [fromApi(entry), ...prev]);
+                  setSnack({ open: true, severity: "success", message: "Time entry created from clock session." });
+                }}
+                onProjectCreated={(p) => setProjects((prev) => [...prev, p])}
+                onTaskCreated={(t) => setTasks((prev) => [...prev, t])}
+              />
+            </Box>
+
             {/* Add / Edit Time Entry */}
+            <Box sx={{ display: entryMode === "manual" ? "block" : "none" }}>
             <Paper elevation={0} className="te-card te-card--pad" ref={formRef}>
               <div className="te-cardTitleRow">
                 <div className="te-cardTitleIcon"><AddIcon fontSize="small" /></div>
@@ -544,12 +655,15 @@ export default function TimeEntryPage() {
                   </div>
 
                   <div className="te-formGrid__full">
-                    <Typography className="te-label" variant="caption">Description</Typography>
+                    <Typography className="te-label" variant="caption">
+                      Reason <span className="te-required">*</span>
+                    </Typography>
                     <TextField
                       fullWidth size="small" value={desc}
-                      onChange={(e) => setDesc(e.target.value)}
-                      placeholder="What did you work on? (optional)"
+                      onChange={(e) => { setDesc(e.target.value); setErrors((p) => ({ ...p, desc: undefined })); }}
+                      placeholder="Explain why a manual entry is needed instead of clocking in/out"
                       multiline minRows={2}
+                      error={!!errors.desc} helperText={errors.desc}
                     />
                   </div>
 
@@ -616,6 +730,7 @@ export default function TimeEntryPage() {
                 </Stack>
               </Box>
             </Paper>
+            </Box>
 
             {/* Time Entries list */}
             <Paper elevation={0} className="te-card te-card--pad">
@@ -657,6 +772,14 @@ export default function TimeEntryPage() {
                             variant={entry.status === "Draft" ? "outlined" : "filled"}
                             className="te-entryChip"
                           />
+                          {getLateness(entry, shiftsMap) && (
+                            <Chip
+                              size="small"
+                              label={getLateness(entry, shiftsMap)}
+                              color="warning"
+                              className="te-entryChip"
+                            />
+                          )}
                         </div>
                         <Typography className="te-entryDesc" variant="body2">{entry.desc}</Typography>
                         <Typography className="te-entryMeta" variant="caption">
@@ -708,7 +831,7 @@ export default function TimeEntryPage() {
           <div className="te-right">
             {/* Submission Status */}
             <Paper elevation={0} className="te-card te-card--pad">
-              <div className="te-rightTitleRow">
+              <div className="te-cardTitleRow">
                 <Typography className="te-cardTitle" variant="subtitle1">Submission Status</Typography>
                 <Typography className="te-cardSubtitle" variant="body2">Current week overview</Typography>
               </div>

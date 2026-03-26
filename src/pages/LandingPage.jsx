@@ -7,6 +7,7 @@ import dashboardImg from "../assets/zcor-dashboard.png";
 import timeImg from "../assets/features/time-tracking.png";
 import timeImg2 from "../assets/features/time-tracking2.png";
 import timeImg3 from "../assets/features/time-tracking3.png";
+import timeImg4 from "../assets/features/time-tracking4.png";
 import schedulingImg from "../assets/features/staff-scheduling.png";
 import schedulingImg2 from "../assets/features/staff-scheduling2.png";
 import schedulingImg3 from "../assets/features/staff-scheduling3.png";
@@ -50,6 +51,7 @@ export default function LandingPage() {
         { src: timeImg, alt: "Time tracking overview" },
         { src: timeImg2, alt: "Time tracking detail view" },
         { src: timeImg3, alt: "Time tracking reports" },
+        { src: timeImg4, alt: "Time tracking clock in/out" },
       ],
       short: "Clock in/out, breaks, and approvals. Export clean timesheets and reduce payroll headaches.",
       tags: ["Timesheets", "Approvals", "Reports"],
