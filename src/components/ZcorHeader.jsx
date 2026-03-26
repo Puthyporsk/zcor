@@ -63,7 +63,7 @@ export default function ZcorHeader() {
     { label: "Features", id: "features" },
     { label: "Modules", id: "modules" },
     { label: "Stories", id: "testimonials" },
-    { label: "Pricing", id: "pricing" },
+    { label: "Plans", id: "pricing" },
   ];
 
   // "Apps" pages list (dropdown menu)
