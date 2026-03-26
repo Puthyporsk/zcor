@@ -32,6 +32,7 @@ import SearchIcon from "@mui/icons-material/Search";
 
 import { useAuth } from "../../context/AuthContext";
 import * as teApi from "../../api/timeEntries";
+import { getShifts } from "../../api/shifts";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,41 @@ const formatDateTime = (iso) => {
   });
 };
 
+// shiftsMap: { "userId|YYYY-MM-DD" => shift }
+// Compares clock-in time (for clock entries) or createdAt (for manual entries)
+// against the shift's startTime to determine if the employee was late.
+function getLateness(entry, shiftsMap) {
+  if (!entry.date) return null;
+  const dateKey = entry.date.slice(0, 10);
+  const userId = entry.user?.id || entry.user?._id;
+  if (!userId) return null;
+
+  const shift = shiftsMap.get(`${userId}|${dateKey}`);
+  if (!shift) return null; // no shift scheduled — can't determine lateness
+
+  // Build shift start deadline from shift date + startTime (e.g. "09:00")
+  const [hh, mm] = shift.startTime.split(":").map(Number);
+  const shiftStart = new Date(dateKey + "T00:00:00");
+  shiftStart.setHours(hh, mm, 0, 0);
+
+  // For clock entries, entry.date IS the clockIn timestamp
+  // For manual entries, fall back to createdAt
+  const compareTime = entry.entryMethod === "clock"
+    ? new Date(entry.date)
+    : new Date(entry.createdAt);
+
+  if (!compareTime || isNaN(compareTime)) return null;
+
+  const diffMs = compareTime - shiftStart;
+  if (diffMs <= 15 * 60 * 1000) return null; // on time or ≤15 min grace
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 60) return `${diffMins}m late`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h late`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d late`;
+}
+
 const STATUS_TABS = ["submitted", "approved", "rejected"];
 
 // ─── component ───────────────────────────────────────────────────────────────
@@ -74,6 +110,7 @@ export default function TimeReviewPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [shiftsMap, setShiftsMap] = useState(new Map());
 
   // dialog state
   const [reviewEntry, setReviewEntry] = useState(null);
@@ -111,14 +148,34 @@ export default function TimeReviewPage() {
     setLoading(true);
     try {
       const data = await teApi.getTimeEntries({ status: activeStatus });
+      let visible;
       // For approved/rejected tabs, only show entries reviewed in the last 14 days unless showAll
       if (activeStatus !== "submitted" && !showAll) {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - 14);
-        const recent = data.filter((e) => e.reviewedAt && new Date(e.reviewedAt) >= cutoff);
-        setEntries(recent);
+        visible = data.filter((e) => e.reviewedAt && new Date(e.reviewedAt) >= cutoff);
       } else {
-        setEntries(data);
+        visible = data;
+      }
+      setEntries(visible);
+
+      // Fetch shifts for the date range of visible entries to power lateness checks
+      if (visible.length > 0) {
+        const dates = visible.map((e) => e.date?.slice(0, 10)).filter(Boolean);
+        const from = dates.reduce((a, b) => (a < b ? a : b));
+        const to = dates.reduce((a, b) => (a > b ? a : b));
+        try {
+          const shifts = await getShifts({ from, to });
+          const map = new Map();
+          for (const s of shifts) {
+            const sDate = s.date?.slice(0, 10);
+            const sUser = s.employee?.id || s.employee?._id;
+            if (sDate && sUser) map.set(`${sUser}|${sDate}`, s);
+          }
+          setShiftsMap(map);
+        } catch {
+          // shifts fetch failure shouldn't block the page
+        }
       }
     } catch (err) {
       showSnack(err.message || "Failed to load entries.", "error");
@@ -395,14 +452,37 @@ export default function TimeReviewPage() {
 
                     {/* Date */}
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      <Typography variant="body2">{formatDate(entry.date)}</Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        <Typography variant="body2">{formatDate(entry.date)}</Typography>
+                        {getLateness(entry, shiftsMap) && (
+                          <Chip
+                            label={getLateness(entry, shiftsMap)}
+                            size="small"
+                            color="warning"
+                            sx={{ fontSize: 10, height: 20 }}
+                          />
+                        )}
+                      </Stack>
                     </TableCell>
 
                     {/* Hours */}
                     <TableCell>
-                      <Typography variant="body2" fontWeight={600}>
-                        {entry.hours}h
-                      </Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.75}>
+                        <Typography variant="body2" fontWeight={600}>
+                          {entry.hours}h
+                        </Typography>
+                        <Chip
+                          label={entry.entryMethod === "clock" ? "Clock" : "Manual"}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            fontSize: 10,
+                            height: 20,
+                            color: entry.entryMethod === "clock" ? "#2e7d32" : "#ed6c02",
+                            borderColor: entry.entryMethod === "clock" ? "#2e7d32" : "#ed6c02",
+                          }}
+                        />
+                      </Stack>
                     </TableCell>
 
                     {/* Type (pending tab only) */}
@@ -528,7 +608,7 @@ export default function TimeReviewPage() {
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
             Approve the time entry for{" "}
-            <strong>{reviewEntry?.user?.name}</strong>?
+            <strong>{reviewEntry?.user?.firstName} {reviewEntry?.user?.lastName}</strong>?
           </Typography>
 
           {reviewEntry && (
@@ -590,7 +670,7 @@ export default function TimeReviewPage() {
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
             Deny the time entry for{" "}
-            <strong>{reviewEntry?.user?.name}</strong>?
+            <strong>{reviewEntry?.user?.firstName} {reviewEntry?.user?.lastName}</strong>?
           </Typography>
 
           {reviewEntry && (
