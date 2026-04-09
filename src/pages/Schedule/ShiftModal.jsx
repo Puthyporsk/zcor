@@ -63,7 +63,8 @@ export default function ShiftModal({
   onDelete,
   onNewTask,
 }) {
-  const isEdit   = Boolean(shift);
+  const isEdit    = Boolean(shift);
+  const readOnly  = isEdit && !isPrivileged;
   const dayLabel = date
     ? `${DAY_FULL[date.getDay()]}, ${MONTH_FULL[date.getMonth()]} ${date.getDate()}`
     : "";
@@ -240,10 +241,10 @@ export default function ShiftModal({
           <Typography
             sx={{ fontWeight: 700, fontSize: 18, color: BRAND, lineHeight: 1.3 }}
           >
-            {isEdit ? "Edit Shift" : "Schedule Employee"}
+            {readOnly ? "Shift Details" : isEdit ? "Edit Shift" : "Schedule Employee"}
           </Typography>
           <Typography sx={{ fontSize: 13, color: "rgba(14,46,37,0.5)", mt: 0.25 }}>
-            {isEdit ? `Editing shift for ${dayLabel}` : `Add a shift for ${dayLabel}`}
+            {readOnly ? dayLabel : isEdit ? `Editing shift for ${dayLabel}` : `Add a shift for ${dayLabel}`}
           </Typography>
         </Box>
         <IconButton size="small" onClick={handleClose} sx={{ mt: -0.5, mr: -0.5 }}>
@@ -376,6 +377,7 @@ export default function ShiftModal({
               fullWidth
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
+              disabled={readOnly}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   bgcolor: "#fff",
@@ -397,6 +399,7 @@ export default function ShiftModal({
               fullWidth
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
+              disabled={readOnly}
               sx={{
                 "& .MuiOutlinedInput-root": {
                   bgcolor: "#fff",
@@ -415,7 +418,21 @@ export default function ShiftModal({
           <Typography sx={{ fontSize: 12, fontWeight: 600, color: BRAND, mb: 0.75, textTransform: "uppercase", letterSpacing: 0.5 }}>
             Task / Activity
           </Typography>
-          {addingTask ? (
+          {readOnly ? (
+            <TextField
+              size="small"
+              fullWidth
+              disabled
+              value={tasks.find((t) => t.id === taskId)?.name || "—"}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  bgcolor: "#fff",
+                  borderRadius: "6px",
+                  "& fieldset": { borderColor: BRAND_BORDER },
+                },
+              }}
+            />
+          ) : addingTask ? (
             <Stack direction="row" spacing={1} alignItems="center">
               <TextField
                 size="small"
@@ -570,48 +587,65 @@ export default function ShiftModal({
 
       {/* Action buttons */}
       <DialogActions sx={{ px: 3, py: 1.5, gap: 1 }}>
-        {canDelete && !confirmDelete && (
+        {readOnly ? (
           <Button
             variant="outlined"
             size="small"
-            startIcon={<DeleteOutlineIcon />}
-            disabled={saving}
-            onClick={() => setConfirmDelete(true)}
+            onClick={handleClose}
             sx={{
               textTransform: "none", borderRadius: "6px", fontSize: 13,
-              borderColor: "rgba(192,57,43,0.4)", color: "#c0392b", mr: "auto",
-              "&:hover": { borderColor: "#c0392b", bgcolor: "rgba(192,57,43,0.06)" },
+              borderColor: BRAND_BORDER, color: BRAND,
+              "&:hover": { borderColor: BRAND, bgcolor: BRAND_MED },
             }}
           >
-            Delete
+            Close
           </Button>
+        ) : (
+          <>
+            {canDelete && !confirmDelete && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<DeleteOutlineIcon />}
+                disabled={saving}
+                onClick={() => setConfirmDelete(true)}
+                sx={{
+                  textTransform: "none", borderRadius: "6px", fontSize: 13,
+                  borderColor: "rgba(192,57,43,0.4)", color: "#c0392b", mr: "auto",
+                  "&:hover": { borderColor: "#c0392b", bgcolor: "rgba(192,57,43,0.06)" },
+                }}
+              >
+                Delete
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleClose}
+              sx={{
+                textTransform: "none", borderRadius: "6px", fontSize: 13,
+                borderColor: BRAND_BORDER, color: BRAND,
+                "&:hover": { borderColor: BRAND, bgcolor: BRAND_MED },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              size="small"
+              disabled={saveBtnDisabled}
+              onClick={handleSave}
+              sx={{
+                textTransform: "none", borderRadius: "6px", fontSize: 13,
+                bgcolor: BRAND, color: "#fff",
+                "&:hover": { bgcolor: "#1a4a37" },
+                "&.Mui-disabled": { bgcolor: "rgba(14,46,37,0.25)", color: "#fff" },
+              }}
+            >
+              {saving ? "Saving…" : isEdit ? "Save Changes" : "Add Shift"}
+            </Button>
+          </>
         )}
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={handleClose}
-          sx={{
-            textTransform: "none", borderRadius: "6px", fontSize: 13,
-            borderColor: BRAND_BORDER, color: BRAND,
-            "&:hover": { borderColor: BRAND, bgcolor: BRAND_MED },
-          }}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          size="small"
-          disabled={saveBtnDisabled}
-          onClick={handleSave}
-          sx={{
-            textTransform: "none", borderRadius: "6px", fontSize: 13,
-            bgcolor: BRAND, color: "#fff",
-            "&:hover": { bgcolor: "#1a4a37" },
-            "&.Mui-disabled": { bgcolor: "rgba(14,46,37,0.25)", color: "#fff" },
-          }}
-        >
-          {saving ? "Saving…" : isEdit ? "Save Changes" : "Add Shift"}
-        </Button>
       </DialogActions>
     </Dialog>
   );

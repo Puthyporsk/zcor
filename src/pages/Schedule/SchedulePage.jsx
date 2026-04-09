@@ -289,7 +289,7 @@ function ShiftCard({ shift, clickable, isMine, onCardClick }) {
 
 // ─── DayColumn ────────────────────────────────────────────────────────────────
 
-function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canEditShift, currentUserId, onAddClick, onCardClick, onLeaveClick }) {
+function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canClickShift, currentUserId, onAddClick, onCardClick, onLeaveClick }) {
   const shiftCount = dayShifts.length;
   const leaveCount = dayLeave.length;
 
@@ -342,7 +342,7 @@ function DayColumn({ date, dayName, dayShifts, dayLeave, canCreate, canEditShift
         ) : (
           <Stack spacing={1}>
             {dayShifts.map((shift) => (
-              <ShiftCard key={shift.id} shift={shift} clickable={canEditShift(shift)} isMine={isSameId(shift.employee?.id || shift.employee?._id, currentUserId)} onCardClick={onCardClick} />
+              <ShiftCard key={shift.id} shift={shift} clickable={canClickShift(shift)} isMine={isSameId(shift.employee?.id || shift.employee?._id, currentUserId)} onCardClick={onCardClick} />
             ))}
           </Stack>
         )}
@@ -599,7 +599,7 @@ export default function SchedulePage() {
     });
   };
 
-  const canEditShift = (shift) => {
+  const canClickShift = (shift) => {
     if (isPrivileged) return true;
     return isSameId(shift.employee?.id || shift.employee?._id, user?._id);
   };
@@ -811,7 +811,7 @@ export default function SchedulePage() {
                   dayShifts={shiftsForDay(date)}
                   dayLeave={leaveForDay(date)}
                   canCreate={isPrivileged}
-                  canEditShift={canEditShift}
+                  canClickShift={canClickShift}
                   currentUserId={user?._id}
                   onAddClick={openAdd}
                   onCardClick={openEdit}
